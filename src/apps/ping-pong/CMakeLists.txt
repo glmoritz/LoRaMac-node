@@ -88,18 +88,27 @@ target_link_libraries(${PROJECT_NAME} m)
 #---------------------------------------------------------------------------------------
 # Debugging and Binutils
 #---------------------------------------------------------------------------------------
+if(NOT ${BOARD} STREQUAL "labscim")
+    include(gdb-helper)
+    include(binutils-arm-none-eabi)
 
-include(gdb-helper)
-include(binutils-arm-none-eabi)
+    # Generate debugger configurations
+    generate_run_gdb_stlink(${PROJECT_NAME})
+    generate_run_gdb_openocd(${PROJECT_NAME})
+    generate_vscode_launch_openocd(${PROJECT_NAME})
 
-# Generate debugger configurations
-generate_run_gdb_stlink(${PROJECT_NAME})
-generate_run_gdb_openocd(${PROJECT_NAME})
-generate_vscode_launch_openocd(${PROJECT_NAME})
+    # Print section sizes of target
+    print_section_sizes(${PROJECT_NAME})
 
-# Print section sizes of target
-print_section_sizes(${PROJECT_NAME})
+    # Create output in hex and binary format
+    create_bin_output(${PROJECT_NAME})
+    create_hex_output(${PROJECT_NAME})
+else()
+	set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED) 
+    target_link_libraries(${PROJECT_NAME} Threads::Threads) 
 
-# Create output in hex and binary format
-create_bin_output(${PROJECT_NAME})
-create_hex_output(${PROJECT_NAME})
+    find_library(LIB_RT  rt)
+    target_link_libraries(${PROJECT_NAME} ${LIB_RT})	
+endif()
+

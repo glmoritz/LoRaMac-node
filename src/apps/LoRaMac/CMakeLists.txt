@@ -164,21 +164,29 @@ set_property(TARGET ${PROJECT_NAME}-${SUB_PROJECT} PROPERTY C_STANDARD 11)
 
 target_link_libraries(${PROJECT_NAME}-${SUB_PROJECT} m)
 
-#---------------------------------------------------------------------------------------
-# Debugging and Binutils
-#---------------------------------------------------------------------------------------
 
-include(gdb-helper)
-include(binutils-arm-none-eabi)
+if(NOT ${BOARD} STREQUAL "labscim")
+    #---------------------------------------------------------------------------------------
+    # Debugging and Binutils
+    #---------------------------------------------------------------------------------------
+    include(gdb-helper)
+    include(binutils-arm-none-eabi)
 
-# Generate debugger configurations
-generate_run_gdb_stlink(${PROJECT_NAME}-${SUB_PROJECT})
-generate_run_gdb_openocd(${PROJECT_NAME}-${SUB_PROJECT})
-generate_vscode_launch_openocd(${PROJECT_NAME}-${SUB_PROJECT})
+    # Generate debugger configurations
+    generate_run_gdb_stlink(${PROJECT_NAME}-${SUB_PROJECT})
+    generate_run_gdb_openocd(${PROJECT_NAME}-${SUB_PROJECT})
+    generate_vscode_launch_openocd(${PROJECT_NAME}-${SUB_PROJECT})
 
-# Print section sizes of target
-print_section_sizes(${PROJECT_NAME}-${SUB_PROJECT})
+    # Print section sizes of target
+    print_section_sizes(${PROJECT_NAME}-${SUB_PROJECT})
 
-# Create output in hex and binary format
-create_bin_output(${PROJECT_NAME}-${SUB_PROJECT})
-create_hex_output(${PROJECT_NAME}-${SUB_PROJECT})
+    # Create output in hex and binary format
+    create_bin_output(${PROJECT_NAME}-${SUB_PROJECT})
+    create_hex_output(${PROJECT_NAME}-${SUB_PROJECT})
+else()
+	set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)  
+
+
+	target_link_libraries(${PROJECT_NAME}-${SUB_PROJECT} PRIVATE Threads::Threads)
+endif()
