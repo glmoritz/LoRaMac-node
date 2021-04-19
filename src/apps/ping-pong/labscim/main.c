@@ -26,6 +26,7 @@
 #include "delay.h"
 #include "timer.h"
 #include "radio.h"
+#include "labscim_platform_socket.h"
 
 #if defined( REGION_AS923 )
 
@@ -112,7 +113,7 @@ typedef enum
     TX_TIMEOUT,
 }States_t;
 
-#define RX_TIMEOUT_VALUE                            1000
+#define RX_TIMEOUT_VALUE                            4000
 #define BUFFER_SIZE                                 64 // Define the payload size here
 
 const uint8_t PingMsg[] = "PING";
@@ -165,14 +166,19 @@ void OnRxError( void );
 /**
  * Main application entry point.
  */
+
+
+
+
 int main(int argc, char const *argv[])
 {
-    bool isMaster = true;
+    
     uint8_t i;
 
     //command line arguments to this node
     platform_process_args(argc,argv);
 
+   
     // Target board initialization
     BoardInitMcu( );
     BoardInitPeriph( );
@@ -187,6 +193,8 @@ int main(int argc, char const *argv[])
     Radio.Init( &RadioEvents );
 
     Radio.SetChannel( RF_FREQUENCY );
+
+    
 
 #if defined( USE_MODEM_LORA )
 
@@ -227,7 +235,7 @@ int main(int argc, char const *argv[])
         switch( State )
         {
         case RX:
-            if( isMaster == true )
+            if( gIsMaster == true )
             {
                 if( BufferSize > 0 )
                 {
@@ -251,13 +259,13 @@ int main(int argc, char const *argv[])
                     }
                     else if( strncmp( ( const char* )Buffer, ( const char* )PingMsg, 4 ) == 0 )
                     { // A master already exists then become a slave
-                        isMaster = false;
+                        gIsMaster = false;
                         GpioWrite( &Led2, 1 ); // Set LED off
                         Radio.Rx( RX_TIMEOUT_VALUE );
                     }
                     else // valid reception but neither a PING or a PONG message
                     {    // Set device as master ans start again
-                        isMaster = true;
+                        gIsMaster = true;
                         Radio.Rx( RX_TIMEOUT_VALUE );
                     }
                 }
@@ -286,7 +294,7 @@ int main(int argc, char const *argv[])
                     }
                     else // valid reception but not a PING as expected
                     {    // Set device as master and start again
-                        isMaster = true;
+                        gIsMaster = true;
                         Radio.Rx( RX_TIMEOUT_VALUE );
                     }
                 }
@@ -302,7 +310,7 @@ int main(int argc, char const *argv[])
             break;
         case RX_TIMEOUT:
         case RX_ERROR:
-            if( isMaster == true )
+            if( gIsMaster == true )
             {
                 // Send the next PING frame
                 Buffer[0] = 'P';
@@ -333,6 +341,11 @@ int main(int argc, char const *argv[])
         }
 
         BoardLowPowerHandler( );
+         // Process Radio IRQ
+        if( Radio.IrqProcess != NULL )
+        {
+            Radio.IrqProcess( );
+        }
 
     }
 }

@@ -36,11 +36,11 @@
 #include "labscim_socket.h"
 
 // MCU Wake Up Time
-#define MIN_ALARM_DELAY                             3 // in ticks
+#define MIN_ALARM_DELAY                             1 // in ticks
 
 
 #define LABSCIM_RTC_ALARM (0x2424)
-uint64_t gLabscimCurrentAlarm;
+uint64_t gLabscimCurrentAlarm=0;
 
 /*!
  * \brief Indicates if the RTC is already Initialized or not
@@ -52,7 +52,8 @@ static bool RtcInitialized = false;
  */
 static bool McuWakeUpTimeInitialized = false;
 
-uint64_t gCurrentTime;
+uint64_t gCurrentTime=0;
+uint32_t gCurrentTimerContext=0;
 
 
 void labscim_set_time(uint64_t time)
@@ -99,7 +100,8 @@ void RtcInit(void)
  */
 uint32_t RtcSetTimerContext( void )
 {    
-    return gCurrentTime/1000;
+    gCurrentTimerContext = gCurrentTime/1000;
+    return gCurrentTimerContext;
 }
 
 /*!
@@ -110,7 +112,7 @@ uint32_t RtcSetTimerContext( void )
  */
 uint32_t RtcGetTimerContext( void )
 {
-    return gCurrentTime/1000;
+    return gCurrentTimerContext;
 }
 
 /*!
@@ -164,15 +166,15 @@ void RtcDelayMs( uint32_t delay )
  */
 void RtcSetAlarm( uint32_t timeout )
 {
-    uint16_t cfalse = 0;
+    uint16_t ctrue = 1;
 	uint32_t seq;
     RtcStopAlarm();
-    gLabscimCurrentAlarm = set_time_event(gNodeOutputBuffer, LABSCIM_RTC_ALARM, cfalse, timeout);
+    gLabscimCurrentAlarm = set_time_event(gNodeOutputBuffer, LABSCIM_RTC_ALARM, ctrue, (timeout-RtcGetTimerElapsedTime( ))*1000);
 }
 
 void RtcStopAlarm( void )
 {
-   if (gLabscimCurrentAlarm != -1)
+   if (gLabscimCurrentAlarm != 0)
     {
         cancel_time_event(gNodeOutputBuffer, gLabscimCurrentAlarm);
     }
@@ -190,7 +192,7 @@ uint32_t RtcGetTimerValue( void )
 
 uint32_t RtcGetTimerElapsedTime( void )
 {
- return( gCurrentTime / 1000);
+ return( gCurrentTime / 1000) - gCurrentTimerContext;
 }
 
 void RtcSetMcuWakeUpTime( void )
@@ -205,7 +207,7 @@ int16_t RtcGetMcuWakeUpTime( void )
 
 static uint64_t RtcGetCalendarValue( /*RTC_DateTypeDef* date, RTC_TimeTypeDef* time*/ )
 {
-    return( gCurrentTime );
+    return( gCurrentTime/1000 );
 }
 
 uint32_t RtcGetCalendarTime( uint16_t *milliseconds )

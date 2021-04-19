@@ -1,7 +1,9 @@
 //labscim related structures
+#include <stdarg.h>
 #include "labscim_linked_list.h"
 #include "labscim_protocol.h"
 #include "labscim_socket.h"
+#include "labscim_log_levels.h"
 #include "loramac_node_setup.h"
 
 #define SERVER_PORT (9608)
@@ -14,6 +16,7 @@ buffer_circ_t *gNodeInputBuffer;
 buffer_circ_t *gNodeOutputBuffer;
 uint8_t* gNodeName;
 uint8_t* gServerAddress;
+uint64_t gIsMaster;
 uint64_t gServerPort;
 uint64_t gBufferSize;
 uint32_t gBootReceived=0;
@@ -21,12 +24,30 @@ uint32_t gProcessing=0;
 
 uint8_t mac_addr[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
+#define DBG_PRINT_BUFFER_SIZE (256)
+uint8_t gByteBuffer[DBG_PRINT_BUFFER_SIZE];
+
+//printf wrappers to send the output to omnet
+int __real_printf(const char *format, ...);
+
+int __wrap_printf(const char *format, ...)
+{
+    va_list arg;
+    int64_t written;
+    va_start(arg, format);
+    written = vsnprintf(gByteBuffer, DBG_PRINT_BUFFER_SIZE,format,arg);
+    print_message(gNodeOutputBuffer, LOGLEVEL_INFO, gByteBuffer,written);
+    return written;    
+}
+
+
 void labscim_protocol_boot(struct labscim_protocol_boot* msg)
 {
 	struct loramac_node_setup* cns = (struct loramac_node_setup*)msg->message;
 	memcpy((void*)mac_addr,(void*)cns->mac_addr,sizeof(uint8_t)*8);
 	labscim_set_time(cns->startup_time);
 	gBootReceived = 1;
+    gIsMaster = cns->IsMaster;
 	free(msg);
 	return;
 }
@@ -65,7 +86,7 @@ platform_process_args(int argc, char**argv)
 			break;
 		case 'n':
 			gNodeName = optarg;
-			break;
+			break;        
 		case '?':
 			fprintf (stderr,"Unknown option character `\\x%x'.\n",	optopt);
 		}

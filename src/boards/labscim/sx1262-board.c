@@ -331,34 +331,6 @@ bool SX126xCheckRfFrequency( uint32_t frequency )
 }
 
 
-void labscim_radio_incoming_command(struct labscim_radio_response* resp)
-{
-    // switch(resp->radio_response_code)
-    // {
-    // 	case CONTIKI_RADIO_PACKET_RECEIVED:
-    // 	{
-    // 		//just append to the list and wait for processing
-    // 		labscim_ll_insert_at_back(&gReceivedPackets, (void*) resp);
-    // 		process_poll(&labscim_radio_process);
-    // 		break;
-    // 	}
-    // 	case CONTIKI_RADIO_STATE_CHANGED:
-    // 	{
-    // 		struct contiki_radio_state* response = (struct contiki_radio_state*)resp->radio_struct;
-    // 		simRadioState  = response->State;
-    // 		free(resp);
-    // 		break;
-    // 	}
-    // 	default:
-    // 	{
-    // 		free(resp);
-    // 		break;
-    // 	}
-    // }
-}
-
-
-
 #if defined( USE_RADIO_DEBUG )
 static void SX126xDbgPinTxWrite( uint8_t state )
 {

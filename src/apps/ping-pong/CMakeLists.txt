@@ -110,5 +110,9 @@ else()
 
     find_library(LIB_RT  rt)
     target_link_libraries(${PROJECT_NAME} ${LIB_RT})	
+
+    add_link_options(--wrap=printf)
+    add_link_options(-fno-builtin-printf)    
+
 endif()
 

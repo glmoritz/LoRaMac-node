@@ -31,13 +31,15 @@
 
 void DelayMsMcu( uint32_t ms )
 {
-    uint32_t resp;
-    uint8_t cfalse = 0;
-
-    uint32_t seq_no = set_time_event(gNodeOutputBuffer, LORAMAC_DELAYMS, cfalse, ms*1000);
+    struct labscim_protocol_header * resp;
+    uint8_t ctrue = 1;
+    uint32_t cmd_seq;
+    uint32_t seq_no = set_time_event(gNodeOutputBuffer, LORAMAC_DELAYMS, ctrue, ms*1000);
     protocol_yield(gNodeOutputBuffer);
-
-	resp =  (struct labscim_radio_response*)socket_wait_for_command(0, seq_no);
-	socket_process_all_commands();
-	free(resp);    
+	do
+    {
+        resp = (struct labscim_protocol_header*)socket_wait_for_command(0, 0);
+        cmd_seq = resp->request_sequence_number;
+        socket_process_command(resp);
+    } while (cmd_seq!=seq_no);	
 }

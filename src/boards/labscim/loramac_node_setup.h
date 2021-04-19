@@ -13,6 +13,7 @@ struct loramac_node_setup
 {
     uint8_t mac_addr[8];
     uint64_t startup_time;
+    uint64_t IsMaster;
     uint8_t output_logs;
 }__attribute__((packed));
 

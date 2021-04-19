@@ -11,6 +11,7 @@ extern buffer_circ_t* gNodeOutputBuffer;
 extern uint8_t* gNodeName;
 extern uint8_t* gServerAddress;
 extern uint64_t gServerPort;
+extern uint64_t gIsMaster;
 extern uint64_t gBufferSize;
 extern uint32_t gBootReceived;
 extern uint32_t gProcessing;

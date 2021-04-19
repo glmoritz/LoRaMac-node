@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "labscim_platform_socket.h"
+extern uint8_t mac_addr[];
 
 /*!
  * Unique Devices IDs register set ( STM32L0xxx )
@@ -92,11 +93,11 @@ static bool UsbIsConnected = false;
 /*!
  * UART2 FIFO buffers size
  */
-#define UART2_FIFO_TX_SIZE                                1024
+#define UART2_FIFO_TX_SIZE                                256
 #define UART2_FIFO_RX_SIZE                                1024
 
 uint8_t Uart2TxBuffer[UART2_FIFO_TX_SIZE];
-uint8_t Uart2RxBuffer[UART2_FIFO_RX_SIZE];
+//uint8_t Uart2RxBuffer[UART2_FIFO_RX_SIZE];
 
 /*!
  * Flag to indicate if the SystemWakeupTime is Calibrated
@@ -263,14 +264,8 @@ uint32_t BoardGetRandomSeed( void )
 
 void BoardGetUniqueId( uint8_t *id )
 {
-    id[7] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 24;
-    id[6] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 16;
-    id[5] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) ) >> 8;
-    id[4] = ( ( *( uint32_t* )ID1 )+ ( *( uint32_t* )ID3 ) );
-    id[3] = ( ( *( uint32_t* )ID2 ) ) >> 24;
-    id[2] = ( ( *( uint32_t* )ID2 ) ) >> 16;
-    id[1] = ( ( *( uint32_t* )ID2 ) ) >> 8;
-    id[0] = ( ( *( uint32_t* )ID2 ) );
+    uint64_t* id64 = (uint64_t*)id;
+    *id64 = *((uint64_t*)mac_addr);    
 }
 
 uint16_t BoardBatteryMeasureVoltage( void )
@@ -463,6 +458,8 @@ void BoardLowPowerHandler( void )
 {
     //labscim lowpower consists in waiting for a simulator command
     //shared memory communication
+    protocol_yield(gNodeOutputBuffer);
+
     pthread_mutex_lock(gNodeInputBuffer->mutex.mutex);
 
     labscim_socket_handle_input(gNodeInputBuffer, &gCommands);
@@ -482,7 +479,13 @@ void BoardLowPowerHandler( void )
  */
 int _write( int fd, const void *buf, size_t count )
 {
-    // while( UartPutBuffer( &Uart2, ( uint8_t* )buf, ( uint16_t )count ) != 0 ){ };
+    if(count>UART2_FIFO_TX_SIZE-1)
+    {
+        count = UART2_FIFO_TX_SIZE-1;    
+    }
+    memcpy(Uart2TxBuffer,buf,count);
+    Uart2TxBuffer[count] = 0;
+    printf("%s",Uart2TxBuffer);    
     return count;
 }
 

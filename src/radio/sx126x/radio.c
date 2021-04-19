@@ -837,7 +837,7 @@ void RadioSetTxConfig( RadioModems_t modem, int8_t power, uint32_t fdev,
             RadioStandby( );
             RadioSetModem( ( SX126x.ModulationParams.PacketType == PACKET_TYPE_GFSK ) ? MODEM_FSK : MODEM_LORA );
             SX126xSetModulationParams( &SX126x.ModulationParams );
-            SX126xSetPacketParams( &SX126x.PacketParams );
+            SX126xSetPacketParams( &SX126x.PacketParams ); 
             break;
     }
 

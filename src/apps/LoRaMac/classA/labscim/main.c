@@ -30,6 +30,7 @@
 #include "LoRaMac.h"
 #include "Commissioning.h"
 #include "NvmCtxMgmt.h"
+#include "labscim_platform_socket.h"
 
 #ifndef ACTIVE_REGION
 
@@ -38,6 +39,8 @@
 #define ACTIVE_REGION LORAMAC_REGION_EU868
 
 #endif
+
+extern uint64_t gCurrentTime;
 
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
@@ -58,7 +61,7 @@
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    false
+#define LORAWAN_CONFIRMED_MSG_ON                    true
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -79,6 +82,13 @@
 #define LORAWAN_DUTYCYCLE_ON                        true
 
 #endif
+
+
+static uint16_t TTN_AU915_CHANNEL_MASK[6] = { 0xff00,0x0000,0x0000,0x0000,0x0002,0x0000};
+
+    
+
+
 
 /*!
  * LoRaWAN application port
@@ -316,7 +326,7 @@ static void JoinNetwork( void )
     // Starts the join procedure
     status = LoRaMacMlmeRequest( &mlmeReq );
     printf( "\n###### ===== MLME-Request - MLME_JOIN ==== ######\n" );
-    printf( "STATUS      : %s\n", MacStatusStrings[status] );
+    printf( "%d: STATUS      : %s\n", gCurrentTime, MacStatusStrings[status]);
 
     if( status == LORAMAC_STATUS_OK )
     {
@@ -410,7 +420,7 @@ static bool SendFrame( void )
             mcpsReq.Req.Confirmed.fPort = AppPort;
             mcpsReq.Req.Confirmed.fBuffer = AppDataBuffer;
             mcpsReq.Req.Confirmed.fBufferSize = AppDataSize;
-            mcpsReq.Req.Confirmed.NbTrials = 8;
+            mcpsReq.Req.Confirmed.NbTrials = 2;
             mcpsReq.Req.Confirmed.Datarate = LORAWAN_DEFAULT_DATARATE;
         }
     }
@@ -424,7 +434,7 @@ static bool SendFrame( void )
     LoRaMacStatus_t status;
     status = LoRaMacMcpsRequest( &mcpsReq );
     printf( "\n###### ===== MCPS-Request ==== ######\n" );
-    printf( "STATUS      : %s\n", MacStatusStrings[status] );
+    printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status]);
 
     if( status == LORAMAC_STATUS_DUTYCYCLE_RESTRICTED )
     {
@@ -495,7 +505,7 @@ static void OnLed3TimerEvent( void* context )
 static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
 {
     printf( "\n###### ===== MCPS-Confirm ==== ######\n" );
-    printf( "STATUS      : %s\n", EventInfoStatusStrings[mcpsConfirm->Status] );
+    printf( "%d: STATUS      : %s\n",gCurrentTime, EventInfoStatusStrings[mcpsConfirm->Status]);
     if( mcpsConfirm->Status != LORAMAC_EVENT_INFO_STATUS_OK )
     {
     }
@@ -593,6 +603,10 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
     }
 
     printf( "\n" );
+
+    // Schedule next packet transmission
+    TimerSetValue(&TxNextPacketTimer, TxDutyCycleTime);
+    TimerStart(&TxNextPacketTimer);
 }
 
 /*!
@@ -604,7 +618,7 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
 static void McpsIndication( McpsIndication_t *mcpsIndication )
 {
     printf( "\n###### ===== MCPS-Indication ==== ######\n" );
-    printf( "STATUS      : %s\n", EventInfoStatusStrings[mcpsIndication->Status] );
+    printf( "%d: STATUS      : %s\n",gCurrentTime, EventInfoStatusStrings[mcpsIndication->Status]);
     if( mcpsIndication->Status != LORAMAC_EVENT_INFO_STATUS_OK )
     {
         return;
@@ -742,7 +756,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                         mlmeReq.Type = MLME_LINK_CHECK;
                         LoRaMacStatus_t status = LoRaMacMlmeRequest( &mlmeReq );
                         printf( "\n###### ===== MLME-Request - MLME_LINK_CHECK ==== ######\n" );
-                        printf( "STATUS      : %s\n", MacStatusStrings[status] );
+                        printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status] );
                     }
                     break;
                 case 6: // (ix)
@@ -774,7 +788,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                             mlmeReq.Req.TxCw.Timeout = ( uint16_t )( ( mcpsIndication->Buffer[1] << 8 ) | mcpsIndication->Buffer[2] );
                             LoRaMacStatus_t status = LoRaMacMlmeRequest( &mlmeReq );
                             printf( "\n###### ===== MLME-Request - MLME_TXCW ==== ######\n" );
-                            printf( "STATUS      : %s\n", MacStatusStrings[status] );
+                            printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status] );
                         }
                         else if( mcpsIndication->BufferSize == 7 )
                         {
@@ -785,7 +799,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
                             mlmeReq.Req.TxCw.Power = mcpsIndication->Buffer[6];
                             LoRaMacStatus_t status = LoRaMacMlmeRequest( &mlmeReq );
                             printf( "\n###### ===== MLME-Request - MLME_TXCW1 ==== ######\n" );
-                            printf( "STATUS      : %s\n", MacStatusStrings[status] );
+                            printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status] );
                         }
                         ComplianceTest.State = 1;
                     }
@@ -798,7 +812,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
 
                         LoRaMacStatus_t status = LoRaMacMlmeRequest( &mlmeReq );
                         printf( "\n###### ===== MLME-Request - MLME_DEVICE_TIME ==== ######\n" );
-                        printf( "STATUS      : %s\n", MacStatusStrings[status] );
+                        printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status]);
                     }
                     break;
                 default:
@@ -846,7 +860,7 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
 static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
 {
     printf( "\n###### ===== MLME-Confirm ==== ######\n" );
-    printf( "STATUS      : %s\n", EventInfoStatusStrings[mlmeConfirm->Status] );
+    printf( "%d: STATUS      : %s\n", gCurrentTime, EventInfoStatusStrings[mlmeConfirm->Status]);
     if( mlmeConfirm->Status != LORAMAC_EVENT_INFO_STATUS_OK )
     {
     }
@@ -909,7 +923,7 @@ static void MlmeIndication( MlmeIndication_t *mlmeIndication )
     if( mlmeIndication->Status != LORAMAC_EVENT_INFO_STATUS_BEACON_LOCKED )
     {
         printf( "\n###### ===== MLME-Indication ==== ######\n" );
-        printf( "STATUS      : %s\n", EventInfoStatusStrings[mlmeIndication->Status] );
+        printf( "%d: STATUS      : %s\n", gCurrentTime, EventInfoStatusStrings[mlmeIndication->Status]);
     }
     if( mlmeIndication->Status != LORAMAC_EVENT_INFO_STATUS_OK )
     {
@@ -934,7 +948,7 @@ void OnMacProcessNotify( void )
 /**
  * Main application entry point.
  */
-int main( void )
+int main(int argc, char const *argv[])
 {
     LoRaMacPrimitives_t macPrimitives;
     LoRaMacCallback_t macCallbacks;
@@ -943,6 +957,9 @@ int main( void )
     uint8_t devEui[8] = { 0 };  // Automatically filed from secure-element
     uint8_t joinEui[8] = { 0 }; // Automatically filed from secure-element
     uint8_t sePin[4] = { 0 };   // Automatically filed from secure-element
+
+    //command line arguments to this node
+    platform_process_args(argc,argv);
 
     BoardInitMcu( );
     BoardInitPeriph( );
@@ -1003,6 +1020,18 @@ int main( void )
                     mibReq.Type = MIB_SE_PIN;
                     LoRaMacMibGetRequestConfirm( &mibReq );
                     memcpy1( sePin, mibReq.Param.SePin, 4 );
+
+                    mibReq.Type = MIB_CHANNELS_MASK;
+                    mibReq.Param.ChannelsMask = TTN_AU915_CHANNEL_MASK;
+                    LoRaMacMibSetRequestConfirm( &mibReq );
+
+                    mibReq.Type = MIB_CHANNELS_DEFAULT_MASK;
+                    mibReq.Param.ChannelsMask = TTN_AU915_CHANNEL_MASK;
+                    LoRaMacMibSetRequestConfirm( &mibReq );
+
+                    mibReq.Type = MIB_MAX_RX_WINDOW_DURATION;
+                    mibReq.Param.MaxRxWindow = 900;
+                    LoRaMacMibSetRequestConfirm( &mibReq );
 
 #if( OVER_THE_AIR_ACTIVATION == 0 )
                     // Tell the MAC layer which network server version are we connecting too.
@@ -1140,11 +1169,7 @@ int main( void )
                 {
                     // Schedule next packet transmission
                     TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
-                }
-
-                // Schedule next packet transmission
-                TimerSetValue( &TxNextPacketTimer, TxDutyCycleTime );
-                TimerStart( &TxNextPacketTimer );
+                }                
                 break;
             }
             case DEVICE_STATE_SLEEP:
