@@ -90,7 +90,7 @@ struct lora_is_channel_free_result
 #define LORA_RADIO_SET_MODULATION_PARAMS (0x5555)
 struct lora_set_modulation_params
 {
-	uint32_t TransmitPower_dBm;
+	float TransmitPower_dBm;
 	ModulationParams_t ModulationParams; //straight from SX1262 configuration	
 } __attribute__((packed));
 

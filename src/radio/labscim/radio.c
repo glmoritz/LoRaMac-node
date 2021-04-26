@@ -766,7 +766,7 @@ void RadioSetTxConfig(RadioModems_t modem, int8_t power, uint32_t fdev,
 {
     struct lora_set_modulation_params modulation_params;
     struct lora_set_packet_params packet_params;
-    modulation_params.TransmitPower_dBm = power;
+    modulation_params.TransmitPower_dBm = (float)power;
 
     switch (modem)
     {
@@ -1254,7 +1254,30 @@ void RadioIrqProcess(void)
                 }
                 if ((RadioEvents != NULL) && (RadioEvents->RxDone != NULL))
                 {
-                    RadioEvents->RxDone(payload->Message, payload->MessageSize_bytes, (int16_t)(payload->RSSI_dbm), (uint8_t)(payload->SNR_db));
+                    //this ugly code matches the semtech snr report from sx126x radios
+                    int8_t snr = 0;
+                    if((int8_t)(payload->SNR_db) > 32)
+                    {
+                        snr = 0x7F;
+                    } 
+                    else if((int8_t)(payload->SNR_db) < -31)
+                    {
+                        snr = 0xF0;
+                    } 
+                    else
+                    {
+                        snr = (int8_t)(payload->SNR_db*4);
+                    }                                          
+                    int16_t rssi = (int16_t)(payload->RSSI_dbm);
+                    if(rssi > 127)
+                    {
+                        //just to be sure
+                        rssi = 127;
+                    } else if(rssi < -127)
+                    {
+                        rssi = -127;
+                    }
+                    RadioEvents->RxDone(payload->Message, payload->MessageSize_bytes, rssi, (  snr  ) >> 2);
                     gRSSI_dbm = payload->RSSI_dbm;
                 }
             }
