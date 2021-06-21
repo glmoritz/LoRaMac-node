@@ -212,7 +212,8 @@ static uint64_t RtcGetCalendarValue( /*RTC_DateTypeDef* date, RTC_TimeTypeDef* t
 
 uint32_t RtcGetCalendarTime( uint16_t *milliseconds )
 {
-    return gCurrentTime/1000;
+    *milliseconds = gCurrentTime/1000;
+    return gCurrentTime/1000000;
 }
 
 /*!

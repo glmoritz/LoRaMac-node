@@ -49,6 +49,8 @@ uint64_t gPacketLatencySignal;
 uint64_t gRTTSignal;
 uint64_t gNodeJoinSignal;
 
+uint64_t gFramesSent=0;
+
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
@@ -406,6 +408,10 @@ static bool SendFrame( void )
 {
     McpsReq_t mcpsReq;
     LoRaMacTxInfo_t txInfo;
+
+    if(++gFramesSent>100)
+        return false;
+
 
     if( LoRaMacQueryTxPossible( AppDataSize, &txInfo ) != LORAMAC_STATUS_OK )
     {
@@ -1197,7 +1203,8 @@ int main(int argc, char const *argv[])
                 else
                 {
                     // Schedule next packet transmission
-                    TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+                    //TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+                    TxDutyCycleTime = 100;
                 }                
                 break;
             }
