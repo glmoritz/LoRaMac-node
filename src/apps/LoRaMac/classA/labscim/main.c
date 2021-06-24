@@ -49,7 +49,7 @@ uint64_t gPacketLatencySignal;
 uint64_t gRTTSignal;
 uint64_t gNodeJoinSignal;
 
-uint64_t gFramesSent=0;
+
 
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
@@ -362,10 +362,10 @@ static void PrepareTxFrame( uint8_t port )
     {
     case 2:
         {            
-            uint64_t* data = (uint64_t*)AppDataBuffer;
+            uint32_t* data = (uint32_t*)AppDataBuffer;
             data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;
-            data[1] = gCurrentTime;            
-            AppDataSizeBackup = AppDataSize = 2*sizeof(uint64_t);
+            data[1] = GetTemp();
+            AppDataSizeBackup = AppDataSize = 2*sizeof(uint32_t);
             //AppDataBuffer[0] = AppLedStateOn;
         }
         break;
@@ -408,10 +408,6 @@ static bool SendFrame( void )
 {
     McpsReq_t mcpsReq;
     LoRaMacTxInfo_t txInfo;
-
-    if(++gFramesSent>100)
-        return false;
-
 
     if( LoRaMacQueryTxPossible( AppDataSize, &txInfo ) != LORAMAC_STATUS_OK )
     {
@@ -975,6 +971,47 @@ void OnMacProcessNotify( void )
     IsMacProcessPending = 1;
 }
 
+float gTemp=25; //temperatura da sala oC
+uint64_t gPrint=0;
+
+
+float gHVACStatus=0.0; //potencia aplicada no sistema de AC (0% a 100%)
+float gP=0.3; //contante de potência do AC
+float gHVACAirTemp=12; //temperatura do ar que sai do AC
+float gAmbientTemp=32; //temperatura exterior oC
+float gC=0.06; //capacidade térmica da sala
+float gElapsedTime = 0;
+
+/*!
+ * Timer to handle update room temperature
+ */
+static TimerEvent_t TemperatureTimer;
+
+
+void UpdateTemp(void* context)
+{
+	gTemp = gTemp + ((gHVACStatus/100)*gP*(gHVACAirTemp-gTemp) + (gAmbientTemp - gTemp)*gC)*(0.3);
+
+	gPrint++;
+
+	if(!(gPrint%10))
+	{
+		labscim_printf("Temperature: %3d.%2d. AC power %3d.%2d %%\n",(int)gTemp,(int)( (gTemp - (int)gTemp ) *100),(int)gHVACStatus,(int)( (gHVACStatus - (int)gHVACStatus ) *100));
+	}
+    gElapsedTime+=300;
+    if(gElapsedTime > 20000)
+    {
+        gElapsedTime = 0;
+        gHVACStatus = (gHVACStatus==100)?0:100;
+    }
+    TimerStart(&TemperatureTimer);
+}
+
+int32_t GetTemp()
+{
+    return (int32_t)(gTemp*1000);
+}
+
 /**
  * Main application entry point.
  */
@@ -1104,6 +1141,10 @@ int main(int argc, char const *argv[])
 
                 TimerInit( &Led3Timer, OnLed3TimerEvent );
                 TimerSetValue( &Led3Timer, 25 );
+
+                TimerInit( &TemperatureTimer, UpdateTemp );
+                TimerSetValue( &TemperatureTimer, 300 );
+                TimerStart(&TemperatureTimer);
 
                 mibReq.Type = MIB_PUBLIC_NETWORK;
                 mibReq.Param.EnablePublicNetwork = LORAWAN_PUBLIC_NETWORK;
