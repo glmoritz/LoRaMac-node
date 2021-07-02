@@ -171,6 +171,8 @@ void BoardInitMcu( void )
             return;
         }
         labscim_buffer_init(gNodeInputBuffer, inbuffername, gBufferSize, 1);
+        free(inbuffername);
+        free(outbuffername);
         node_is_ready(gNodeOutputBuffer);
         while (!gBootReceived)
         {
