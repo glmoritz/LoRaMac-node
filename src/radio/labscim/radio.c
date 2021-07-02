@@ -431,6 +431,9 @@ bool RxContinuous = false;
 
 bool IrqFired = false;
 
+
+struct labscim_radio_response *gLastRxPacket = NULL;
+
 /*
  * SX126x DIO IRQ callback functions prototype
  */
@@ -1243,6 +1246,7 @@ void RadioIrqProcess(void)
                 {
                     RadioEvents->RxError();
                 }
+                free(cmd);
             }
             else
             {
@@ -1256,13 +1260,13 @@ void RadioIrqProcess(void)
                 {
                     //this ugly code matches the semtech snr report from sx126x radios
                     int8_t snr = 0;
-                    if((int8_t)(payload->SNR_db) > 32)
+                    if((int8_t)(payload->SNR_db) > 31)
                     {
-                        snr = 0x7F;
+                        snr = 0x7C;
                     } 
-                    else if((int8_t)(payload->SNR_db) < -31)
-                    {
-                        snr = 0xF0;
+                    else if((int8_t)(payload->SNR_db) < -32)
+                    {                        
+                        snr = 0x80; 
                     } 
                     else
                     {
@@ -1273,15 +1277,24 @@ void RadioIrqProcess(void)
                     {
                         //just to be sure
                         rssi = 127;
-                    } else if(rssi < -127)
+                    } else if(rssi < -128)
                     {
-                        rssi = -127;
+                        rssi = -128;
                     }
+                    if(gLastRxPacket!=NULL)
+                    {
+                        free(gLastRxPacket);
+                    }                    
+                    gLastRxPacket = cmd;
                     RadioEvents->RxDone(payload->Message, payload->MessageSize_bytes, rssi, (  snr  ) >> 2);
                     gRSSI_dbm = payload->RSSI_dbm;
                 }
+                else
+                {
+                    free(cmd);
+                }                
             }
-            free(cmd);
+            
             break;
         }
         case LORA_RADIO_IS_CHANNEL_FREE_RESULT:

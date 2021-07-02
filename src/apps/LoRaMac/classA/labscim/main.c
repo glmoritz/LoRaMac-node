@@ -49,7 +49,19 @@ uint64_t gPacketLatencySignal;
 uint64_t gRTTSignal;
 uint64_t gNodeJoinSignal;
 
-uint64_t gFramesSent=0;
+
+float gTemp=25; //temperatura da sala oC
+uint64_t gPrint=0;
+
+
+float gHVACStatus=0.0; //potencia aplicada no sistema de AC (0% a 100%)
+float gP=0.07; //contante de potência do AC
+float gHVACAirTemp=12; //temperatura do ar que sai do AC
+float gAmbientTemp=32; //temperatura exterior oC
+float gC=0.02; //capacidade térmica da sala
+float gElapsedTime = 0;
+
+
 
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
@@ -303,23 +315,26 @@ const char* EventInfoStatusStrings[] =
 void PrintHexBuffer( uint8_t *buffer, uint8_t size )
 {
     uint8_t newline = 0;
+    #define MAX_SIZE (256)
+    int8_t string[MAX_SIZE];
+    uint32_t ptr = 0;
 
-    for( uint8_t i = 0; i < size; i++ )
+    for( uint8_t i = 0; (i < size) && (ptr<MAX_SIZE); i++ )
     {
         if( newline != 0 )
         {
-            labscim_printf( "\n" );
+            ptr += snprintf(string+ptr,MAX_SIZE-ptr, "\n" );
             newline = 0;
         }
 
-        labscim_printf( "%02X ", buffer[i] );
+        ptr += snprintf(string+ptr,MAX_SIZE-ptr, "%02X ", buffer[i] );
 
         if( ( ( i + 1 ) % 16 ) == 0 )
         {
             newline = 1;
         }
     }
-    labscim_printf( "\n" );
+    labscim_printf( "%s\n", string );
 }
 
 /*!
@@ -362,11 +377,11 @@ static void PrepareTxFrame( uint8_t port )
     {
     case 2:
         {            
-            uint64_t* data = (uint64_t*)AppDataBuffer;
-            data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;
-            data[1] = gCurrentTime;            
-            AppDataSizeBackup = AppDataSize = 2*sizeof(uint64_t);
-            //AppDataBuffer[0] = AppLedStateOn;
+            uint32_t* data = (uint32_t*)AppDataBuffer;
+            data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;                        
+            data[1] = GetTemp();                        
+            AppDataSizeBackup = 2*sizeof(uint32_t);
+            AppDataSize = 2*sizeof(uint32_t);            
         }
         break;
     case 224:
@@ -408,9 +423,6 @@ static bool SendFrame( void )
 {
     McpsReq_t mcpsReq;
     LoRaMacTxInfo_t txInfo;
-
-    if(++gFramesSent>100)
-        return false;
 
 
     if( LoRaMacQueryTxPossible( AppDataSize, &txInfo ) != LORAMAC_STATUS_OK )
@@ -691,12 +703,11 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         {
         case 1: // The application LED can be controlled on port 1 or 2
         case 2:
-            if( mcpsIndication->BufferSize == 1 )
-            {
-                AppLedStateOn = mcpsIndication->Buffer[0] & 0x01;
-                GpioWrite( &Led4, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0 );
-            }
+        {
+            int32_t* buf = (int32_t*)mcpsIndication->Buffer;
+            gHVACStatus = (buf[1]==1)?100:0;            
             break;
+        }
         case 224:
             if( ComplianceTest.Running == false )
             {
@@ -975,6 +986,32 @@ void OnMacProcessNotify( void )
     IsMacProcessPending = 1;
 }
 
+
+/*!
+ * Timer to handle update room temperature
+ */
+static TimerEvent_t TemperatureTimer;
+
+
+void UpdateTemp(void* context)
+{
+	gTemp = gTemp + ((gHVACStatus/100)*gP*(gHVACAirTemp-gTemp) + (gAmbientTemp - gTemp)*gC)*(0.3);
+
+	gPrint++;
+
+	if(!(gPrint%10))
+	{
+		labscim_printf("Temperature: %3d.%2d. AC power %3d.%2d %%\n",(int)gTemp,(int)( (gTemp - (int)gTemp ) *100),(int)gHVACStatus,(int)( (gHVACStatus - (int)gHVACStatus ) *100));
+	}
+    gElapsedTime+=300;
+    TimerStart(&TemperatureTimer);
+}
+
+int32_t GetTemp()
+{
+    return (int32_t)(gTemp*1000);
+}
+
 /**
  * Main application entry point.
  */
@@ -1015,10 +1052,10 @@ int main(int argc, char const *argv[])
 
     DeviceState = DEVICE_STATE_RESTORE;
 
-    gPacketGeneratedSignal = LabscimSignalRegister("UpstreamPacketGenerated");
-    gPacketLatencySignal = LabscimSignalRegister("DownstreamPacketLatency");    
-    gNodeJoinSignal = LabscimSignalRegister("NodeJoin");    
-    gRTTSignal = LabscimSignalRegister("PacketRTT");
+    gPacketGeneratedSignal = LabscimSignalRegister("LoRaUpstreamPacketGenerated");
+    gPacketLatencySignal = LabscimSignalRegister("LoRaDownstreamPacketLatency");    
+    gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin");    
+    gRTTSignal = LabscimSignalRegister("LoRaPacketRTT");
 
     labscim_printf( "###### ===== ClassA demo application v1.0.0 ==== ######\n\n" );
 
@@ -1143,34 +1180,18 @@ int main(int argc, char const *argv[])
             {
                 mibReq.Type = MIB_DEV_EUI;
                 LoRaMacMibGetRequestConfirm( &mibReq );
-                labscim_printf( "DevEui      : %02X", mibReq.Param.DevEui[0] );
-                for( int i = 1; i < 8; i++ )
-                {
-                    labscim_printf( "-%02X", mibReq.Param.DevEui[i] );
-                }
-                labscim_printf( "\n" );
+                labscim_printf( "DevEui      : %08X\n", *((uint64_t*)mibReq.Param.DevEui));
+                
                 mibReq.Type = MIB_JOIN_EUI;
                 LoRaMacMibGetRequestConfirm( &mibReq );
-                labscim_printf( "JoinEui     : %02X", mibReq.Param.JoinEui[0] );
-                for( int i = 1; i < 8; i++ )
-                {
-                    labscim_printf( "-%02X", mibReq.Param.JoinEui[i] );
-                }
-                labscim_printf( "\n" );
+                labscim_printf( "JoinEui     : %08X\n", *((uint64_t*)mibReq.Param.JoinEui));
+                
                 mibReq.Type = MIB_SE_PIN;
                 LoRaMacMibGetRequestConfirm( &mibReq );
-                labscim_printf( "Pin         : %02X", mibReq.Param.SePin[0] );
-                for( int i = 1; i < 4; i++ )
-                {
-                    labscim_printf( "-%02X", mibReq.Param.SePin[i] );
-                }
-                labscim_printf( "\n\n" );
+                labscim_printf( "Pin         : %04X\n\n", *((uint32_t*)mibReq.Param.SePin));
+                
 #if( OVER_THE_AIR_ACTIVATION == 0 )
-                labscim_printf( "###### ===== JOINED ==== ######\n" );
-                labscim_printf( "\nABP\n\n" );
-                labscim_printf( "DevAddr     : %08lX\n", DevAddr );
-                labscim_printf( "\n\n" );
-
+                labscim_printf( "###### ===== JOINED ==== ######\n\nABP\n\nDevAddr     : %08lX\n\n",DevAddr );                
                 mibReq.Type = MIB_NETWORK_ACTIVATION;
                 mibReq.Param.NetworkActivation = ACTIVATION_TYPE_ABP;
                 LoRaMacMibSetRequestConfirm( &mibReq );
@@ -1222,8 +1243,7 @@ int main(int argc, char const *argv[])
                     IsMacProcessPending = 0;
                 }
                 else
-                {
-                    labscim_printf( "\nSleeping\n" );
+                {                    
                     // The MCU wakes up through events
                     BoardLowPowerHandler( );
                 }
