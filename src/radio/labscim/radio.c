@@ -769,6 +769,17 @@ void RadioSetTxConfig(RadioModems_t modem, int8_t power, uint32_t fdev,
 {
     struct lora_set_modulation_params modulation_params;
     struct lora_set_packet_params packet_params;
+
+    //this emulates the maximum/minimum power of sx1262
+    if (power > 22)
+    {
+        power = 22;
+    }
+    if(power<-9)
+    {
+        power = -9;
+    }
+
     modulation_params.TransmitPower_dBm = (float)power;
 
     switch (modem)
