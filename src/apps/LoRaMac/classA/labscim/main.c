@@ -378,9 +378,10 @@ static void PrepareTxFrame( uint8_t port )
     case 2:
         {            
             uint32_t* data = (uint32_t*)AppDataBuffer;
-            data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;                       
-            AppDataSizeBackup = 1*sizeof(uint32_t);
-            AppDataSize = 1*sizeof(uint32_t);            
+            data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;  
+            data[1] = GetTemp();                       
+            AppDataSizeBackup = 2*sizeof(uint32_t);
+            AppDataSize = 2*sizeof(uint32_t);            
         }
         break;
     case 224:
