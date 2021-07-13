@@ -379,8 +379,9 @@ static void PrepareTxFrame( uint8_t port )
         {            
             uint32_t* data = (uint32_t*)AppDataBuffer;
             data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;                       
-            AppDataSizeBackup = 1*sizeof(uint32_t);
-            AppDataSize = 1*sizeof(uint32_t);            
+            data[1] = GetTemp();
+            AppDataSizeBackup = 2*sizeof(uint32_t);
+            AppDataSize = 2*sizeof(uint32_t);            
         }
         break;
     case 224:
@@ -702,8 +703,11 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         case 1: // The application LED can be controlled on port 1 or 2
         case 2:
         {
-            int32_t* buf = (int32_t*)mcpsIndication->Buffer;
-            gHVACStatus = (buf[1]==1)?100:0;            
+            int32_t* buf = (int32_t*)mcpsIndication->Buffer;            
+            if((buf[1]>=0)&&(buf[1]<=100))
+            {
+                gHVACStatus = buf[1];
+            }            
             break;
         }
         case 224:
