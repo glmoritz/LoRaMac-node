@@ -7,7 +7,7 @@ void* socket_wait_for_command(uint32_t command, uint32_t sequence_number);
 char gBuffer[256];
 int labscim_printf(const char *fmt, ...)
 {
-	#define LOGLEVEL_INFO (3)    
+	#define LOGLEVEL_WARN (4)    
     va_list args;
     va_start(args, fmt);
     int rc = vsnprintf(gBuffer, sizeof(gBuffer), fmt, args);	

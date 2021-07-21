@@ -52,8 +52,11 @@ static bool RtcInitialized = false;
  */
 static bool McuWakeUpTimeInitialized = false;
 
+extern uint64_t gTimeReference;
 uint64_t gCurrentTime=0;
 uint32_t gCurrentTimerContext=0;
+uint32_t gRTCBackup[2] = {0,0};
+
 
 
 void labscim_set_time(uint64_t time)
@@ -100,8 +103,8 @@ void RtcInit(void)
  */
 uint32_t RtcSetTimerContext( void )
 {    
-    gCurrentTimerContext = gCurrentTime/1000;
-    return gCurrentTimerContext;
+    gCurrentTimerContext = (gTimeReference+gCurrentTime)/1000;
+    return (uint32_t)gCurrentTimerContext;
 }
 
 /*!
@@ -112,7 +115,7 @@ uint32_t RtcSetTimerContext( void )
  */
 uint32_t RtcGetTimerContext( void )
 {
-    return gCurrentTimerContext;
+    return (uint32_t)gCurrentTimerContext;
 }
 
 /*!
@@ -187,12 +190,12 @@ void RtcStartAlarm( uint32_t timeout )
 
 uint32_t RtcGetTimerValue( void )
 {
-    return( gCurrentTime / 1000);
+    return (uint32_t)((gTimeReference+gCurrentTime)/1000);
 }
 
 uint32_t RtcGetTimerElapsedTime( void )
 {
- return( gCurrentTime / 1000) - gCurrentTimerContext;
+ return( (gTimeReference+gCurrentTime) / 1000) - gCurrentTimerContext;
 }
 
 void RtcSetMcuWakeUpTime( void )
@@ -207,13 +210,27 @@ int16_t RtcGetMcuWakeUpTime( void )
 
 static uint64_t RtcGetCalendarValue( /*RTC_DateTypeDef* date, RTC_TimeTypeDef* time*/ )
 {
-    return( gCurrentTime/1000 );
+    return(( gTimeReference+gCurrentTime)/1000 );
 }
 
 uint32_t RtcGetCalendarTime( uint16_t *milliseconds )
 {
-    *milliseconds = gCurrentTime/1000;
-    return gCurrentTime/1000000;
+    //RTC_TimeTypeDef time ;
+    //RTC_DateTypeDef date;
+    //uint32_t ticks;
+
+    //uint64_t calendarValue = RtcGetCalendarValue( &date, &time );
+
+    //uint32_t seconds = ( uint32_t )( calendarValue >> N_PREDIV_S );
+
+    //ticks =  ( uint32_t )calendarValue & PREDIV_S;
+
+    //*milliseconds = RtcTick2Ms( ticks );
+
+    //return seconds;
+
+    *milliseconds = (uint16_t)(((gTimeReference+gCurrentTime)%1000000ull)/1000ull);
+    return (uint32_t)((gTimeReference+gCurrentTime)/1000000);
 }
 
 /*!
@@ -236,14 +253,14 @@ void HAL_RTC_AlarmAEventCallback( /*RTC_HandleTypeDef *hrtc*/ )
 
 void RtcBkupWrite( uint32_t data0, uint32_t data1 )
 {
-//     HAL_RTCEx_BKUPWrite( &RtcHandle, RTC_BKP_DR0, data0 );
-//     HAL_RTCEx_BKUPWrite( &RtcHandle, RTC_BKP_DR1, data1 );
+    gRTCBackup[0] = data0;
+    gRTCBackup[1] = data1;
  }
 
 void RtcBkupRead( uint32_t *data0, uint32_t *data1 )
 {
-   *data0 = 0;
-   *data1 = 0;
+   *data0 = gRTCBackup[0];
+   *data1 = gRTCBackup[1];
 }
 
 void RtcProcess( void )
@@ -253,5 +270,5 @@ void RtcProcess( void )
 
 TimerTime_t RtcTempCompensation( TimerTime_t period, float temperature )
 {
-    return ( TimerTime_t ) 0;
+    return ( TimerTime_t ) period;
 }

@@ -4,7 +4,7 @@
 #include "labscim_protocol.h"
 #include "labscim_socket.h"
 #include "labscim_log_levels.h"
-#include "loramac_node_setup.h"
+#include "labscim_loramac_setup.h"
 
 #define SERVER_PORT (9608)
 #define SERVER_ADDRESS "127.0.0.1"
@@ -21,6 +21,7 @@ uint64_t gServerPort;
 uint64_t gBufferSize;
 uint32_t gBootReceived=0;
 uint32_t gProcessing=0;
+uint64_t gTimeReference=0;
 
 uint8_t mac_addr[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
@@ -48,6 +49,8 @@ void labscim_protocol_boot(struct labscim_protocol_boot* msg)
 	labscim_set_time(cns->startup_time);
 	gBootReceived = 1;
     gIsMaster = cns->IsMaster;
+    gTimeReference = cns->TimeReference;
+    printf("TimeReference %lld, next beacon in %d, time reference (32bit) %lld \n", gTimeReference, 128 - (gTimeReference%128), gTimeReference&0xFFFFFFFF);
 	free(msg);
 	return;
 }

@@ -103,16 +103,18 @@ SysTime_t SysTimeSub( SysTime_t a, SysTime_t b )
 
 void SysTimeSet( SysTime_t sysTime )
 {
-    SysTime_t deltaTime;
-  
+    SysTime_t deltaTime;  
     SysTime_t calendarTime = { .Seconds = 0, .SubSeconds = 0 };
 
-    calendarTime.Seconds = RtcGetCalendarTime( ( uint16_t* )&calendarTime.SubSeconds );
+    //since we are using and ideal RTC, we will never correct our time
+    return;
 
-    // sysTime is epoch
-    deltaTime = SysTimeSub( sysTime, calendarTime );
+    // calendarTime.Seconds = RtcGetCalendarTime( ( uint16_t* )&calendarTime.SubSeconds );
 
-    RtcBkupWrite( deltaTime.Seconds, ( uint32_t )deltaTime.SubSeconds );
+    // // sysTime is epoch
+    // deltaTime = SysTimeSub( sysTime, calendarTime );
+
+    // RtcBkupWrite( deltaTime.Seconds, ( uint32_t )deltaTime.SubSeconds );
 }
 
 SysTime_t SysTimeGet( void )

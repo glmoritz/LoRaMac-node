@@ -54,7 +54,7 @@ extern "C"
 /*!
  * Beacon guard time in ms
  */
-#define CLASSB_BEACON_GUARD                         3000
+#define CLASSB_BEACON_GUARD                         300
 
 /*!
  * Beacon window time in ms

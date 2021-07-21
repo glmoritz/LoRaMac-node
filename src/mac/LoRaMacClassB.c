@@ -28,6 +28,7 @@ Maintainer: Miguel Luis ( Semtech ), Gregory Cristian ( Semtech ) and Daniel Jae
 
 #ifdef LORAMAC_CLASSB_ENABLED
 
+extern uint64_t gTimeReference;
 
 /*
  * LoRaMac Class B Context structure for NVM parameters
@@ -798,7 +799,8 @@ static void LoRaMacClassBProcessBeacon( void )
                         if( SysTimeToMs( Ctx.BeaconCtx.NextBeaconRx ) > currentTime )
                         {
                             // Calculate the time when we expect the next beacon
-                            beaconEventTime = TimerTempCompensation( SysTimeToMs( Ctx.BeaconCtx.NextBeaconRx ) - currentTime, Ctx.BeaconCtx.Temperature );
+                            beaconEventTime = TimerTempCompensation( ApplyGuardTime( SysTimeToMs( Ctx.BeaconCtx.NextBeaconRx )) - currentTime, Ctx.BeaconCtx.Temperature );                            
+                            
 
                             if( ( int32_t ) beaconEventTime > beaconRxConfig.WindowOffset )
                             {
@@ -1688,8 +1690,12 @@ void LoRaMacClassBDeviceTimeAns( void )
     SysTime_t nextBeacon = SysTimeGet( );
     uint32_t currentTimeMs = SysTimeToMs( nextBeacon );
 
+    
+    
     nextBeacon.Seconds = nextBeacon.Seconds + ( 128 - ( nextBeacon.Seconds % 128 ) );
     nextBeacon.SubSeconds = 0;
+
+    printf("\n NextBeacon: %d. Time Reference: %ld, offset = %f",nextBeacon.Seconds, gTimeReference, ((float)(((uint64_t)nextBeacon.Seconds)*1000000 - gTimeReference))/1000000.0 );
 
     Ctx.BeaconCtx.NextBeaconRx = nextBeacon;
     Ctx.BeaconCtx.LastBeaconRx = SysTimeSub( Ctx.BeaconCtx.NextBeaconRx, ( SysTime_t ){ .Seconds = CLASSB_BEACON_INTERVAL / 1000, .SubSeconds = 0 } );
@@ -1794,7 +1800,7 @@ void LoRaMacClassBStartRxSlots( void )
 
         Ctx.MulticastSlotState = PINGSLOT_STATE_CALC_PING_OFFSET;
         TimerSetValue( &Ctx.MulticastSlotTimer, 1 );
-        TimerStart( &Ctx.MulticastSlotTimer );
+        //TimerStart( &Ctx.MulticastSlotTimer );
     }
 #endif // LORAMAC_CLASSB_ENABLED
 }
