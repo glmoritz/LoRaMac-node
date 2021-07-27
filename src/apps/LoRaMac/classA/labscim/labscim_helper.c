@@ -18,7 +18,7 @@ int labscim_printf(const char *fmt, ...)
 	}
 	gBuffer[sizeof(gBuffer)-1]=0;
     printf("%s",gBuffer);
-	print_message(gNodeOutputBuffer,LOGLEVEL_INFO,gBuffer,strlen(gBuffer)+1);
+	print_message(gNodeOutputBuffer,LOGLEVEL_WARN,gBuffer,strlen(gBuffer)+1);
 	va_end(args);
     return rc;
 }
