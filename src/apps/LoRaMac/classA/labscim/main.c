@@ -49,6 +49,8 @@ uint64_t gPacketLatencySignal;
 uint64_t gRTTSignal;
 uint64_t gNodeJoinSignal;
 
+extern uint8_t gAPP_KEY[32];
+
 
 float gTemp=25; //temperatura da sala oC
 uint64_t gPrint=0;
@@ -82,7 +84,7 @@ float gElapsedTime = 0;
 /*!
  * LoRaWAN confirmed messages
  */
-#define LORAWAN_CONFIRMED_MSG_ON                    true
+#define LORAWAN_CONFIRMED_MSG_ON                    false
 
 /*!
  * LoRaWAN Adaptive Data Rate
@@ -105,7 +107,7 @@ float gElapsedTime = 0;
 #endif
 
 
-static uint16_t TTN_AU915_CHANNEL_MASK[6] = { 0x00ff,0x0000,0x0000,0x0000,0x0001,0x0000};
+static uint16_t TTN_AU915_CHANNEL_MASK[6] = { 0xff00,0x0000,0x0000,0x0000,0x0002,0x0000};
 
     
 
@@ -377,11 +379,11 @@ static void PrepareTxFrame( uint8_t port )
     {
     case 2:
         {            
-            uint32_t* data = (uint32_t*)AppDataBuffer;
+            uint64_t* data = (uint64_t*)AppDataBuffer;
             data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;  
-            data[1] = GetTemp();                       
-            AppDataSizeBackup = 2*sizeof(uint32_t);
-            AppDataSize = 2*sizeof(uint32_t);            
+            data[1] = gCurrentTime;                   
+            AppDataSizeBackup = 2*sizeof(uint64_t);
+            AppDataSize = 2*sizeof(uint64_t);            
         }
         break;
     case 224:
@@ -1079,6 +1081,9 @@ int main(int argc, char const *argv[])
                 }
                 else
                 {
+                    SecureElementSetKey(APP_KEY,gAPP_KEY);
+                    SecureElementSetKey(NWK_KEY,gAPP_KEY);
+
                     // Read secure-element DEV_EUI, JOI_EUI and SE_PIN values.
                     mibReq.Type = MIB_DEV_EUI;
                     LoRaMacMibGetRequestConfirm( &mibReq );
@@ -1227,8 +1232,8 @@ int main(int argc, char const *argv[])
                 else
                 {
                     // Schedule next packet transmission
-                    //TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
-                    TxDutyCycleTime = 100;
+                    TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+                    //TxDutyCycleTime = 100;
                 }                
                 break;
             }

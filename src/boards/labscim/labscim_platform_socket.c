@@ -25,6 +25,8 @@ uint64_t gTimeReference=0;
 
 uint8_t mac_addr[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
+uint8_t gAPP_KEY[32];
+
 #define DBG_PRINT_BUFFER_SIZE (256)
 uint8_t gByteBuffer[DBG_PRINT_BUFFER_SIZE];
 
@@ -50,7 +52,7 @@ void labscim_protocol_boot(struct labscim_protocol_boot* msg)
 	gBootReceived = 1;
     gIsMaster = cns->IsMaster;
     gTimeReference = cns->TimeReference;
-    printf("TimeReference %lld, next beacon in %d, time reference (32bit) %lld \n", gTimeReference, 128 - (gTimeReference%128), gTimeReference&0xFFFFFFFF);
+    memcpy(gAPP_KEY,cns->AppKey,32);    
 	free(msg);
 	return;
 }
