@@ -117,7 +117,7 @@ uint64_t gClassBTX = 0;
 #endif
 
 
-static uint16_t TTN_AU915_CHANNEL_MASK[6] = { 0x00ff,0x0000,0x0000,0x0000,0x0001,0x0000};
+static uint16_t TTN_AU915_CHANNEL_MASK[6] = { 0xff00,0x0000,0x0000,0x0000,0x0002,0x0000};
 
     
 

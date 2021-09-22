@@ -17,5 +17,6 @@ void LabscimSignalEmit(uint64_t id, double value);
 
 int labscim_printf(const char *fmt, ...);
 
+double LabscimExponentialRandomVariable(double mean); //mean is 1/lambda where lambda is the arrival rate (messages/second)
 
 #endif /* EXAMPLES_6TISCH_SIMPLE_NODE_LABSCIM_HELPER_H_ */

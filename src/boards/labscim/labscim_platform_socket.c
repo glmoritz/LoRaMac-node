@@ -135,6 +135,15 @@ void socket_process_command(struct labscim_protocol_header *hdr)
         labscim_radio_incoming_command((struct labscim_radio_response *)(hdr));
         break;
     }
+    case LABSCIM_END:
+    {
+#ifdef LABSCIM_LOG_COMMANDS
+        sprintf(log, "seq%4d\tEND\n", hdr->sequence_number);
+        labscim_log(log, "pro ");
+#endif
+        exit(0);
+        break;
+    }
     default:
     {
         perror("Unhandled Labscim Command\n");

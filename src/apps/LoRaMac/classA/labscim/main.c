@@ -51,30 +51,16 @@ uint64_t gNodeJoinSignal;
 
 extern uint8_t gAPP_KEY[32];
 
-
-float gTemp=25; //temperatura da sala oC
-uint64_t gPrint=0;
-
-
-float gHVACStatus=0.0; //potencia aplicada no sistema de AC (0% a 100%)
-float gP=0.07; //contante de potência do AC
-float gHVACAirTemp=12; //temperatura do ar que sai do AC
-float gAmbientTemp=32; //temperatura exterior oC
-float gC=0.02; //capacidade térmica da sala
-float gElapsedTime = 0;
-
-
-
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            5000
+#define APP_TX_DUTYCYCLE                            15000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
  * value in [ms].
  */
-#define APP_TX_DUTYCYCLE_RND                        1000
+#define APP_TX_DUTYCYCLE_RND                        500
 
 /*!
  * Default datarate
@@ -155,6 +141,8 @@ static uint8_t IsTxConfirmed = LORAWAN_CONFIRMED_MSG_ON;
  * Defines the application data transmission duty cycle
  */
 static uint32_t TxDutyCycleTime;
+static uint64_t gTimeToSend;
+
 
 /*!
  * Timer to handle the application data transmission duty cycle
@@ -380,10 +368,9 @@ static void PrepareTxFrame( uint8_t port )
     case 2:
         {            
             uint64_t* data = (uint64_t*)AppDataBuffer;
-            data[0] = LABSCIM_PROTOCOL_MAGIC_NUMBER;  
-            data[1] = gCurrentTime;                   
-            AppDataSizeBackup = 2*sizeof(uint64_t);
-            AppDataSize = 2*sizeof(uint64_t);            
+            data[0] = gCurrentTime;                               
+            AppDataSizeBackup = sizeof(uint64_t);
+            AppDataSize = sizeof(uint64_t);            
         }
         break;
     case 224:
@@ -436,6 +423,7 @@ static bool SendFrame( void )
     }
     else
     {
+        LabscimSignalEmit(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
         if( IsTxConfirmed == false )
         {
             mcpsReq.Type = MCPS_UNCONFIRMED;
@@ -461,8 +449,7 @@ static bool SendFrame( void )
     AppData.Buffer = mcpsReq.Req.Unconfirmed.fBuffer;
     AppData.BufferSize = mcpsReq.Req.Unconfirmed.fBufferSize;
 
-    LoRaMacStatus_t status;
-    LabscimSignalEmit(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
+    LoRaMacStatus_t status;    
     status = LoRaMacMcpsRequest( &mcpsReq );
     labscim_printf( "\n###### ===== MCPS-Request ==== ######\n" );
     labscim_printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status]);
@@ -636,7 +623,14 @@ static void McpsConfirm( McpsConfirm_t *mcpsConfirm )
     labscim_printf( "\n" );
 
     // Schedule next packet transmission
-    TimerSetValue(&TxNextPacketTimer, TxDutyCycleTime);
+    uint64_t elapsed = (gCurrentTime-gTimeToSend)/1000;
+    if(elapsed>=TxDutyCycleTime)
+    {
+        elapsed = TxDutyCycleTime-1;
+    }
+    labscim_printf( "\nScheduling transmission in %d milliseconds\n", TxDutyCycleTime-elapsed );
+
+    TimerSetValue(&TxNextPacketTimer, TxDutyCycleTime-elapsed);
     TimerStart(&TxNextPacketTimer);
 }
 
@@ -704,9 +698,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         {
         case 1: // The application LED can be controlled on port 1 or 2
         case 2:
-        {
-            int32_t* buf = (int32_t*)mcpsIndication->Buffer;
-            gHVACStatus = (buf[1]==1)?100:0;            
+        {           
+            
             break;
         }
         case 224:
@@ -867,14 +860,11 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
     
     labscim_printf( "RX PORT     : %d\n", mcpsIndication->Port );
 
-    if (mcpsIndication->BufferSize >= sizeof(uint64_t)*3)
-    {        
+    if (mcpsIndication->BufferSize >= sizeof(uint64_t)*2)
+    {
         uint64_t *tx_time = (uint64_t *)mcpsIndication->Buffer;
-        if(tx_time[0]==LABSCIM_PROTOCOL_MAGIC_NUMBER)
-        {
-            LabscimSignalEmit(gPacketLatencySignal, (double)(gCurrentTime - tx_time[2]) / 1e6);
-            LabscimSignalEmit(gRTTSignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
-        }        
+        LabscimSignalEmit(gPacketLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
+        LabscimSignalEmit(gRTTSignal, (double)(gCurrentTime - tx_time[0]) / 1e6);
     }
 
     if( mcpsIndication->BufferSize != 0 )
@@ -988,30 +978,11 @@ void OnMacProcessNotify( void )
 }
 
 
-/*!
- * Timer to handle update room temperature
- */
-static TimerEvent_t TemperatureTimer;
 
 
-void UpdateTemp(void* context)
-{
-	gTemp = gTemp + ((gHVACStatus/100)*gP*(gHVACAirTemp-gTemp) + (gAmbientTemp - gTemp)*gC)*(0.3);
 
-	gPrint++;
 
-	if(!(gPrint%10))
-	{
-		labscim_printf("Temperature: %3d.%2d. AC power %3d.%2d %%\n",(int)gTemp,(int)( (gTemp - (int)gTemp ) *100),(int)gHVACStatus,(int)( (gHVACStatus - (int)gHVACStatus ) *100));
-	}
-    gElapsedTime+=300;
-    TimerStart(&TemperatureTimer);
-}
 
-int32_t GetTemp()
-{
-    return (int32_t)(gTemp*1000);
-}
 
 /**
  * Main application entry point.
@@ -1081,8 +1052,8 @@ int main(int argc, char const *argv[])
                 }
                 else
                 {
-                    SecureElementSetKey(APP_KEY,gAPP_KEY);
-                    SecureElementSetKey(NWK_KEY,gAPP_KEY);
+                    //SecureElementSetKey(APP_KEY,gAPP_KEY);
+                    //SecureElementSetKey(NWK_KEY,gAPP_KEY);
 
                     // Read secure-element DEV_EUI, JOI_EUI and SE_PIN values.
                     mibReq.Type = MIB_DEV_EUI;
@@ -1106,7 +1077,7 @@ int main(int argc, char const *argv[])
                     LoRaMacMibSetRequestConfirm( &mibReq );
 
                     mibReq.Type = MIB_MAX_RX_WINDOW_DURATION;
-                    mibReq.Param.MaxRxWindow = 900;
+                    mibReq.Param.MaxRxWindow = 500;
                     LoRaMacMibSetRequestConfirm( &mibReq );
 
 #if( OVER_THE_AIR_ACTIVATION == 0 )
@@ -1145,10 +1116,6 @@ int main(int argc, char const *argv[])
 
                 TimerInit( &Led3Timer, OnLed3TimerEvent );
                 TimerSetValue( &Led3Timer, 25 );
-
-                TimerInit( &TemperatureTimer, UpdateTemp );
-                TimerSetValue( &TemperatureTimer, 300 );
-                TimerStart(&TemperatureTimer);
 
                 mibReq.Type = MIB_PUBLIC_NETWORK;
                 mibReq.Param.EnablePublicNetwork = LORAWAN_PUBLIC_NETWORK;
@@ -1232,7 +1199,9 @@ int main(int argc, char const *argv[])
                 else
                 {
                     // Schedule next packet transmission
-                    TxDutyCycleTime = APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+                    TxDutyCycleTime =  4000 + LabscimExponentialRandomVariable((float)(APP_TX_DUTYCYCLE-4000)) ;//APP_TX_DUTYCYCLE + randr( -APP_TX_DUTYCYCLE_RND, APP_TX_DUTYCYCLE_RND );
+                    labscim_printf( "\nNext TX in %d milliseconds\n", TxDutyCycleTime );
+                    gTimeToSend = gCurrentTime;
                     //TxDutyCycleTime = 100;
                 }                
                 break;
