@@ -45,10 +45,21 @@ uint64_t LabscimSignalRegister(uint8_t* signal_name)
 	return ret;
 }
 
-void LabscimSignalEmit(uint64_t id, double value)
+void LabscimSignalEmitDouble(uint64_t id, double value)
 {
-	signal_emit(gNodeOutputBuffer, id, value);
+	signal_emit_double(gNodeOutputBuffer, id, value);
 }
+
+void LabscimSignalEmitChar(uint64_t id, char* value, uint64_t size)
+{
+	signal_emit_char(gNodeOutputBuffer, id, value,size);
+}
+
+void LabscimSignalSubscribe(uint64_t id)
+{
+	signal_subscribe(gNodeOutputBuffer,id);	
+}
+
 
 double LabscimExponentialRandomVariable(double mean) //mean is 1/lambda where lambda is the arrival rate (messages/second)
 {

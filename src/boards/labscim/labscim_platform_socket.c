@@ -25,6 +25,8 @@ uint64_t gTimeReference=0;
 
 uint8_t mac_addr[] = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08 };
 
+extern void labscim_signal_arrived(struct labscim_signal* sig);
+
 uint8_t gAPP_KEY[32];
 
 #define DBG_PRINT_BUFFER_SIZE (256)
@@ -133,6 +135,12 @@ void socket_process_command(struct labscim_protocol_header *hdr)
 #endif
         labscim_set_time(((struct labscim_radio_response *)(hdr))->current_time);
         labscim_radio_incoming_command((struct labscim_radio_response *)(hdr));
+        break;
+    }
+    case LABSCIM_SIGNAL:
+    {
+        labscim_set_time(((struct labscim_signal *)(hdr))->current_time);
+        labscim_signal_arrived((struct labsim_signal *)(hdr));
         break;
     }
     case LABSCIM_END:
