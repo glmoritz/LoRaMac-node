@@ -48,13 +48,31 @@ uint64_t gPacketGeneratedSignal;
 uint64_t gPacketLatencySignal;
 uint64_t gRTTSignal;
 uint64_t gNodeJoinSignal;
+uint64_t gAoIMaxSignal;
+uint64_t gAoIMinSignal;
+uint64_t gAoIAreaSignal;
+uint64_t gPacketReceivedSignal;
+
+uint64_t gSignature=0;
+extern uint8_t mac_addr[];
+
+struct signal_info
+{
+	uint64_t signature;	
+    double error;
+	double latency;
+	double aoi_max;
+	double aoi_min;
+	double aoi_area;
+} __attribute__((packed));
+
 
 extern uint8_t gAPP_KEY[32];
 
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
-#define APP_TX_DUTYCYCLE                            15000
+#define APP_TX_DUTYCYCLE                            60000
 
 /*!
  * Defines a random delay for application data transmission duty cycle. 1s,
@@ -423,7 +441,7 @@ static bool SendFrame( void )
     }
     else
     {
-        LabscimSignalEmit(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
+        LabscimSignalEmitDouble(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
         if( IsTxConfirmed == false )
         {
             mcpsReq.Type = MCPS_UNCONFIRMED;
@@ -863,8 +881,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
     if (mcpsIndication->BufferSize >= sizeof(uint64_t)*2)
     {
         uint64_t *tx_time = (uint64_t *)mcpsIndication->Buffer;
-        LabscimSignalEmit(gPacketLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
-        LabscimSignalEmit(gRTTSignal, (double)(gCurrentTime - tx_time[0]) / 1e6);
+        LabscimSignalEmitDouble(gPacketLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
+        LabscimSignalEmitDouble(gRTTSignal, (double)(gCurrentTime - tx_time[0]) / 1e6);
     }
 
     if( mcpsIndication->BufferSize != 0 )
@@ -916,7 +934,7 @@ static void MlmeConfirm( MlmeConfirm_t *mlmeConfirm )
                 // Status is OK, node has joined the network
                 DeviceState = DEVICE_STATE_SEND;
 
-                LabscimSignalEmit(gNodeJoinSignal,mibGet.Param.DevAddr);                
+                LabscimSignalEmitDouble(gNodeJoinSignal,mibGet.Param.DevAddr);                
             }
             else
             {
@@ -989,6 +1007,8 @@ void OnMacProcessNotify( void )
  */
 int main(int argc, char const *argv[])
 {
+    char* mac_inv = (char*)(&gSignature);
+
     LoRaMacPrimitives_t macPrimitives;
     LoRaMacCallback_t macCallbacks;
     MibRequestConfirm_t mibReq;
@@ -1025,9 +1045,26 @@ int main(int argc, char const *argv[])
     DeviceState = DEVICE_STATE_RESTORE;
 
     gPacketGeneratedSignal = LabscimSignalRegister("LoRaUpstreamPacketGenerated");
-    gPacketLatencySignal = LabscimSignalRegister("LoRaDownstreamPacketLatency");    
+    gPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
+    gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin"); 
+
+    gAoIMaxSignal = LabscimSignalRegister("LoRaUpstreamAoIMax");
+    gAoIMinSignal = LabscimSignalRegister("LoRaUpstreamAoIMin");
+    gAoIAreaSignal = LabscimSignalRegister("LoRaUpstreamAoIArea");
+
+    gPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
     gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin");    
+    
     gRTTSignal = LabscimSignalRegister("LoRaPacketRTT");
+
+    for(uint32_t i=0;i<8;i++)
+    {
+        mac_inv[i] = mac_addr[7-i];
+    }
+    
+
+    gPacketReceivedSignal = LabscimSignalRegister("LoRaPacketReceived");
+	LabscimSignalSubscribe(gPacketReceivedSignal);
 
     labscim_printf( "###### ===== ClassA demo application v1.0.0 ==== ######\n\n" );
 
@@ -1234,4 +1271,20 @@ int main(int argc, char const *argv[])
             }
         }
     }
+}
+
+void labscim_signal_arrived(struct labscim_signal* sig)
+{
+	if (sig->signal_id == gPacketReceivedSignal)
+	{
+		struct signal_info* si = (struct signal_info*)(sig->signal);		
+		if (si->signature == gSignature)
+		{
+			LabscimSignalEmitDouble(gPacketLatencySignal, si->latency);						
+			LabscimSignalEmitDouble(gAoIMinSignal, si->aoi_min);
+			LabscimSignalEmitDouble(gAoIMaxSignal, si->aoi_max);
+			LabscimSignalEmitDouble(gAoIAreaSignal, si->aoi_area);
+		}
+	}
+	free(sig);
 }
