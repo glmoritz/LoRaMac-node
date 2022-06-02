@@ -1,17 +1,16 @@
-/**
- * @file      atecc608a-tnglora-se.c
+/*!
+ * \file  atecc608a-tnglora-se.c
  *
- * @brief     ATECC608A-TNGLORA Secure Element hardware implementation
+ * \brief ATECC608A-TNGLORA Secure Element hardware implementation
  *
- * @remark    Current implementation only supports LoRaWAN 1.0.x version
- *
- * @copyright Copyright (c) 2020 The Things Industries B.V.
- *
- * Revised BSD License
- * Copyright The Things Industries B.V 2020. All rights reserved.
+ * \remark Current implementation only supports LoRaWAN 1.0.x version
+ * 
+ * The Clear BSD License
+ * Copyright The Things Industries B.V. (c)2021. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
  *     * Redistributions of source code must retain the above copyright
  *       notice, this list of conditions and the following disclaimer.
  *     * Redistributions in binary form must reproduce the above copyright
@@ -21,16 +20,18 @@
  *       names of its contributors may be used to endorse or promote products
  *       derived from this software without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
- * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE THINGS INDUSTRIES B.V BE LIABLE FOR ANY
- * DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
- * (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
- * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
- * ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
- * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
- * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE THINGS INDUSTRIES B.V BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 
 #include "atca_basic.h"
@@ -38,6 +39,7 @@
 #include "atca_devtypes.h"
 
 #include "secure-element.h"
+#include "secure-element-nvm.h"
 #include "se-identity.h"
 #include "atecc608a-tnglora-se-hal.h"
 
@@ -67,52 +69,9 @@ typedef struct sKey
     uint8_t KeyBlockIndex;
 } Key_t;
 
-/*
- * Secure Element Non Volatile Context structure
- */
-typedef struct sSecureElementNvCtx
-{
-    /*!
-     * DevEUI storage
-     */
-    uint8_t DevEui[SE_EUI_SIZE];
-    /*!
-     * Join EUI storage
-     */
-    uint8_t JoinEui[SE_EUI_SIZE];
-    /*!
-     * Pin storage
-     */
-    uint8_t Pin[SE_PIN_SIZE];
-    /*!
-     * LoRaWAN key list
-     */
-    Key_t KeyList[NUM_OF_KEYS];
-} SecureElementNvCtx_t;
+static SecureElementNvmData_t* SeNvm;
 
-/*!
- * Secure element context
- */
-static SecureElementNvCtx_t SeNvmCtx = {
-    /*!
-     * end-device IEEE EUI (big endian)
-     */
-    .DevEui = { 0 },
-    /*!
-     * App/Join server IEEE EUI (big endian)
-     */
-    .JoinEui = { 0 },
-    /*!
-     * Secure-element pin (big endian)
-     */
-    .Pin = SECURE_ELEMENT_PIN,
-    /*!
-     * LoRaWAN key list
-     */
-    .KeyList = ATECC608A_SE_KEY_LIST
-};
-
-static SecureElementNvmEvent SeNvmCtxChanged;
+static Key_t KeyList[NUM_OF_KEYS] = ATECC608A_SE_KEY_LIST;
 
 static ATCAIfaceCfg atecc608_i2c_config;
 
@@ -225,21 +184,13 @@ SecureElementStatus_t GetKeyByID( KeyIdentifier_t keyID, Key_t** keyItem )
 {
     for( uint8_t i = 0; i < NUM_OF_KEYS; i++ )
     {
-        if( SeNvmCtx.KeyList[i].KeyID == keyID )
+        if( KeyList[i].KeyID == keyID )
         {
-            *keyItem = &( SeNvmCtx.KeyList[i] );
+            *keyItem = &( KeyList[i] );
             return SECURE_ELEMENT_SUCCESS;
         }
     }
     return SECURE_ELEMENT_ERROR_INVALID_KEY_ID;
-}
-
-/*
- * Dummy callback in case if the user provides NULL function pointer
- */
-static void DummyCB( void )
-{
-    return;
 }
 
 /*
@@ -296,8 +247,35 @@ static SecureElementStatus_t ComputeCmac( uint8_t* micBxBuffer, uint8_t* buffer,
     }
 }
 
-SecureElementStatus_t SecureElementInit( SecureElementNvmEvent seNvmCtxChanged )
+SecureElementStatus_t SecureElementInit( SecureElementNvmData_t* nvm )
 {
+    SecureElementNvmData_t seNvmInit =
+    {
+        /*!
+        * end-device IEEE EUI (big endian)
+        */
+        .DevEui = { 0 },
+        /*!
+        * App/Join server IEEE EUI (big endian)
+        */
+        .JoinEui = { 0 },
+        /*!
+        * Secure-element pin (big endian)
+        */
+        .Pin = SECURE_ELEMENT_PIN,
+    };
+
+    if( nvm == NULL )
+    {
+        return SECURE_ELEMENT_ERROR_NPE;
+    }
+
+    // Initialize nvm pointer
+    SeNvm = nvm;
+
+    // Initialize data
+    memcpy1( ( uint8_t* )SeNvm, ( uint8_t* )&seNvmInit, sizeof( seNvmInit ) );
+
 #if !defined( SECURE_ELEMENT_PRE_PROVISIONED )
 #error "ATECC608A is always pre-provisioned. Please set SECURE_ELEMENT_PRE_PROVISIONED to ON"
 #endif
@@ -314,47 +292,16 @@ SecureElementStatus_t SecureElementInit( SecureElementNvmEvent seNvmCtxChanged )
         return SECURE_ELEMENT_ERROR;
     }
 
-    if( atcab_read_devEUI( SeNvmCtx.DevEui ) != ATCA_SUCCESS )
+    if( atcab_read_devEUI( SeNvm->DevEui ) != ATCA_SUCCESS )
     {
         return SECURE_ELEMENT_ERROR;
     }
 
-    if( atcab_read_joinEUI( SeNvmCtx.JoinEui ) != ATCA_SUCCESS )
+    if( atcab_read_joinEUI( SeNvm->JoinEui ) != ATCA_SUCCESS )
     {
         return SECURE_ELEMENT_ERROR;
     }
-
-    // Assign callback
-    if( seNvmCtxChanged != 0 )
-    {
-        SeNvmCtxChanged = seNvmCtxChanged;
-    }
-    else
-    {
-        SeNvmCtxChanged = DummyCB;
-    }
-
     return SECURE_ELEMENT_SUCCESS;
-}
-
-SecureElementStatus_t SecureElementRestoreNvmCtx( void* seNvmCtx )
-{
-    // Restore nvm context
-    if( seNvmCtx != 0 )
-    {
-        memcpy1( ( uint8_t* ) &SeNvmCtx, ( uint8_t* ) seNvmCtx, sizeof( SeNvmCtx ) );
-        return SECURE_ELEMENT_SUCCESS;
-    }
-    else
-    {
-        return SECURE_ELEMENT_ERROR_NPE;
-    }
-}
-
-void* SecureElementGetNvmCtx( size_t* seNvmCtxSize )
-{
-    *seNvmCtxSize = sizeof( SeNvmCtx );
-    return &SeNvmCtx;
 }
 
 SecureElementStatus_t SecureElementSetKey( KeyIdentifier_t keyID, uint8_t* key )
@@ -600,14 +547,13 @@ SecureElementStatus_t SecureElementSetDevEui( uint8_t* devEui )
     {
         return SECURE_ELEMENT_ERROR_NPE;
     }
-    memcpy1( SeNvmCtx.DevEui, devEui, SE_EUI_SIZE );
-    SeNvmCtxChanged( );
+    memcpy1( SeNvm->DevEui, devEui, SE_EUI_SIZE );
     return SECURE_ELEMENT_SUCCESS;
 }
 
 uint8_t* SecureElementGetDevEui( void )
 {
-    return SeNvmCtx.DevEui;
+    return SeNvm->DevEui;
 }
 
 SecureElementStatus_t SecureElementSetJoinEui( uint8_t* joinEui )
@@ -616,14 +562,13 @@ SecureElementStatus_t SecureElementSetJoinEui( uint8_t* joinEui )
     {
         return SECURE_ELEMENT_ERROR_NPE;
     }
-    memcpy1( SeNvmCtx.JoinEui, joinEui, SE_EUI_SIZE );
-    SeNvmCtxChanged( );
+    memcpy1( SeNvm->JoinEui, joinEui, SE_EUI_SIZE );
     return SECURE_ELEMENT_SUCCESS;
 }
 
 uint8_t* SecureElementGetJoinEui( void )
 {
-    return SeNvmCtx.JoinEui;
+    return SeNvm->JoinEui;
 }
 
 SecureElementStatus_t SecureElementSetPin( uint8_t* pin )
@@ -633,12 +578,11 @@ SecureElementStatus_t SecureElementSetPin( uint8_t* pin )
         return SECURE_ELEMENT_ERROR_NPE;
     }
 
-    memcpy1( SeNvmCtx.Pin, pin, SE_PIN_SIZE );
-    SeNvmCtxChanged( );
+    memcpy1( SeNvm->Pin, pin, SE_PIN_SIZE );
     return SECURE_ELEMENT_SUCCESS;
 }
 
 uint8_t* SecureElementGetPin( void )
 {
-    return SeNvmCtx.Pin;
+    return SeNvm->Pin;
 }

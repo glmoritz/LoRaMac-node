@@ -11,6 +11,203 @@ Please refer to [Releases pre-certification-results](https://github.com/Lora-net
 
 ## [Unreleased]
 
+## [4.6.0] - 2022-01-11
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.4" and "LoRaWAN specification 1.1.0 + FCntDwn ERRATA" with "LoRaWAN Regional Parameters 2-1.0.1"
+- GitHub reported issues corrections.
+
+### Known limitations
+
+- SAMR34 platform does not implement NVM storage functionality. This is a requirement for LoRaWAN versions greater or equal to 1.0.4.
+  No work on this subject is forseen by the maintainers. Implementation proposals are welcome.
+
+### Added
+
+- Added NbTrans default value reset under JoinAccept processing
+- Added missing Class B certification commands
+- Added missing `classBParams.NetworkActivation` variable initialization
+- Added Class B remote multicast setup support
+- Added data rate validation to the join accept message handling
+- Added channel id limits verification to DlChannelReq handling
+
+### Changed
+
+- Changed `LmHandlerDeviceTimeReq` API to be publicly accessible
+- Changed improved the way `USE_LRWAN_1_1_X_CRYPTO` pre-processing directive is used
+- Changed improved the way `JoinNonce` is checked
+
+### Fixed
+
+- Fixed first beacon acquisition after receiving a `DeviceTimeAns`.
+- Fixed `LmHandlerParams_t` `PingSlotPeriodicity` field type from `bool` to `uint8_t`
+- Fixed i2c.h to include "utilities.h".
+- Fixed VSCode `periodic-uplink-lpp` project default LoRaWAN class selection
+- Fixed SX127x FSK transmission when radio current operating mode is RX.
+
+### Removed
+
+- Removed no more needed `MLME_SCHEDULE_UPLINK` notification
+
+## [4.5.2] - 2021-05-28
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.4" and "LoRaWAN Regional Parameters 2-1.0.1"
+- GitHub reported issues corrections.
+
+### Known limitations
+
+- SAMR34 platform does not implement NVM storage functionality. This is a requirement for LoRaWAN versions greater or equal to 1.0.4.
+  No work on this subject is forseen by the maintainers. Implementation proposals are welcome.
+
+### Added
+
+- Added possibility to override periodic-uplink-lpp example `LORAWAN_DEFAULT_CLASS`
+- Added I2C driver support for B-L072Z-LRWAN1 and Nucleo platforms to the build system
+- Added battery voltage and MCU temperature reading functions implementation for Nucleo platforms
+- Added a default value for `Request->ReqReturn.DutyCycleWaitTime` to ensure that a valid value is always returned
+- Added SX126x `REG_RX_GAIN` and `REG_TX_MODULATION` to the radio registers retention list
+- Added SX126x missing registers definitions
+- Added radio image calibration enforcement after radio initialization and radio sleep cold start.
+- Added possibility to query minimal Tx data rate
+
+### Changed
+
+- Updated ADC driver based on en.en-st-stm32cubeide examples
+- Changed improved the way `LmHandler` handles the packages transmissions
+- Changed certification `OnTxPeriodicityChanged` callback implementation in order to directly apply the requested change
+- Changed the `LmHandler` initialization to apply user default data rate
+- Changed SX1272 and SX1276 FSK FIFO threshold from 15 to 31 in order to give more time for the MCU to make other processing tasks
+- Changed the way `IrqFired` global variable is handled by `RadioIrqProcess`
+- Changed the place of call to `TimerStop( &RxTimeoutTimer )` on `RadioIrqProcess` implementation
+- Changed utilities.h `SUCCESS`/`FAIL` definition by an enumeration `LMN_STATUS_OK`/`LMN_STATUS_ERROR`
+
+### Fixed
+
+- Fixed Null pointer exception when CN470 region was selected
+- Fixed `src/system/gps.c` HasFix variable type from `double` to `bool`
+- Fixed Class C downlink handling
+- Fixed I2C driver for L476
+- Fixed re-transmissions handling when ClassB or ClassC downlink is received
+- Fixed certification `FPort224DisableReq` command NVM handling
+- Fixed Class B & C confirmed downlink acknowledge management when `CLASS_B_C_RESP_TIMEOUT` expires
+- Fixed an issue when receiving downlinks in class C window during a class A procedure
+- Fixed SX126x and LR1110 driver IrqFired variable management
+- Fixed `LmhpCompliance.c` `periodicity` array size computation
+- Fixed join back-off by not storing band usage on the NVM memory.
+- Fixed `LoRaMacMibGetRequestConfirm` `MIB_SE_PIN` handling
+- Fixed ping-slot frequency to take in account the `AS923_FREQ_OFFSET_HZ` parameter
+- Fixed fragmentation loop variable type in order to allow more than 255 fragments
+- Fixed `RtcMs2Tick` conversion on SAMR34
+- Fixed compiling issue when RU864 region is selected
+- Fixed `MLME_SCHEDULE_UPLINK` handling.
+
+### Removed
+
+- Removed STM32 platforms system wake up time calibration
+
+## [4.5.1] - 2021-01-18
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.4" and "LoRaWAN Regional Parameters 2-1.0.1"
+- GitHub reported issues corrections.
+
+### Fixed
+
+- Fixed compiling issues
+
+## [4.4.7] - 2021-01-18
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.3" and "LoRaWAN Regional Parameters v1.0.3revA"
+- **Release 4.4.7 is an hotfix of 4.4.6 and is the last one supporting "LoRaWAN specification 1.0.3"**
+
+### Changed
+
+- Changed examples GitHub version to 4.4.7
+
+### Fixed
+
+- Fixed compiling issues when KR920 or RU864 regions are selected
+- Fixed compiling issues for `fuota-test-01` example
+
+## [4.5.0] - 2020-12-18
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.4" and "LoRaWAN Regional Parameters 2-1.0.1"
+- GitHub reported issues corrections. Please refer to [Release Version 4.5.0](https://github.com/Lora-net/LoRaMac-node/milestone/5)
+
+### Added
+
+- Added implementation of LoRaWAN 1.0.4 changes
+- Added implementation for new Certification protocol specification
+- Added GitHub repository and firmware examples version definitions
+
+## [4.4.6] - 2020-12-18
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.3" and "LoRaWAN Regional Parameters v1.0.3revA"
+- GitHub reported issues corrections. Please refer to [Release Version 4.4.6](https://github.com/Lora-net/LoRaMac-node/milestone/8)
+- **Release 4.4.6 is the last one supporting "LoRaWAN specification 1.0.3"**
+
+### Changed
+
+- Refactored MAC layer and examples Non Volatile Memory data handling
+- Changed `NewChannelReq` amd `DlChannelReq` handling to ignore command for `AU915`, `CN470` and `US915` regions
+- Updated behavior of `SX126xSetLoRaSymbNumTimeout` to round up the timeout to the nearest possible number of symbol.
+- Changed radio drivers floating point to integer computations
+- Improved `GetNextLowerTxDr` function implementation.
+- Changed SX1272 and SX1276 FSK FIFO handling by using `FifoLevel` IRQ instead of `FifoEmpty` IRQ  
+  **WARNING** *DIO1 IRQ MCU pin detection has changed from `RISING` to `RISING_FALLING` edge.*
+- Changed IMST boards default power source to `USB_POWER`
+
+### Fixed
+
+- Fixed certification test application handling
+- Fixed `ping-pong` and `rx-sensi` examples to use the right `FSK_BANDWIDTH` and `FSK_AFC_BANDWIDTH` parameters
+- Fixed one byte transmissions over I2C
+- Fixed `RegionIN865RxParamSetupReq` `DrOffset` verification
+- Fixed STM platforms IRQ handlers when using a C++ compiler
+- Fixed an issue where the Join back off algorithm wasn't being applied when the duty-cycle enforcement was OFF
+- Fixed `AU915_MAX_RX1_DR_OFFSET` value to 5 instead of 6
+
+### Removed
+
+- Removed ClassA, ClassB and ClassC examples.
+
+## [4.5.0-rc.1] - 2020-11-24
+
+### General
+
+- Release based on "LoRaWAN specification 1.0.4" and "LoRaWAN Regional Parameters 2-1.0.1"
+- GitHub reported issues corrections. Please refer to [Release Version 4.5.0](https://github.com/Lora-net/LoRaMac-node/milestone/5)
+
+### Added
+
+- Added implementation of LoRaWAN 1.0.4 changes
+- Added implementation for new Certification protocol specification
+- Added GitHub repository and firmware examples version definitions
+
+### Changed
+
+- Changed IMST boards default power source to USB_POWER
+
+### Fixed
+
+- Fixed an issue where the Join back off algorithm wasn't being applied when the duty-cycle enforcement was OFF.
+- Fixed `AU915_MAX_RX1_DR_OFFSET` value to 5 instead of 6
+
+### Removed
+
+- Removed NvmCtxCallback calls as they should only be done when a modification happens.
+- Removed ClassA, ClassB and ClassC examples.
+
 ## [4.4.5] - 2020-10-14
 
 ### General
@@ -34,6 +231,7 @@ Please refer to [Releases pre-certification-results](https://github.com/Lora-net
 - Changed hard coded `JoinAccept` max payload size (33) by `LORAMAC_JOIN_ACCEPT_FRAME_MAX_SIZE` definition.
 - Moved radio operating mode management to specific board implementation
 - Changed radio `IsChannelFree API` in order to provide reception bandwidth
+- AS923 default downlink dwell time setting changed to disabled
 - Back port 1.0.4 region implementation improvements
 - Changed `RegionCommonComputeSymbolTimeLoRa`, `RegionCommonComputeSymbolTimeFsk` and `RegionCommonComputeRxWindowParameters`
   API implementations to use integer divisions instead of double division.
@@ -247,7 +445,6 @@ Please refer to [Releases pre-certification-results](https://github.com/Lora-net
 
 - Fixed an overflow issue that could happen with `NmeaStringSize` variable
 - Fixed an issue where the node stopped transmitting
-
 
 ## [4.3.1] - 2017-02-27
 

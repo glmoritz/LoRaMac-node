@@ -1,24 +1,35 @@
 /*!
- * \file      eeprom-board.c
+ * \file  eeprom-board.c
  *
- * \brief     Target board EEPROM driver implementation
+ * \brief Target board EEPROM driver implementation
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2017 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Gregory Cristian ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdint.h>
 #include <stdbool.h>
@@ -56,7 +67,7 @@ void EepromMcuInit( void )
         eeStatus = EE_Init( EepromVirtualAddress, EE_FORCED_ERASE );
         if( eeStatus != EE_OK )
         {
-            assert_param( FAIL );
+            assert_param( LMN_STATUS_ERROR );
         }
     }
     else
@@ -75,7 +86,7 @@ void EepromMcuInit( void )
         eeStatus = EE_Init( EepromVirtualAddress, EE_CONDITIONAL_ERASE );
         if( eeStatus != EE_OK )
         {
-            assert_param( FAIL );
+            assert_param( LMN_STATUS_ERROR );
         }
     }
 
@@ -93,22 +104,24 @@ bool EepromMcuIsErasingOnGoing( void )
     return ErasingOnGoing;
 }
 
-uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
+LmnStatus_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    uint8_t status = SUCCESS;
+    LmnStatus_t status = LMN_STATUS_OK;
     EE_Status eeStatus = EE_OK;
-    
+
     // Unlock the Flash Program Erase controller
     HAL_FLASH_Unlock( );
 
+    CRITICAL_SECTION_BEGIN( );
     for( uint32_t i = 0; i < size; i++ )
     {
         eeStatus |= EE_WriteVariable8bits( EepromVirtualAddress[addr + i], buffer[i] );
     }
+    CRITICAL_SECTION_END( );
 
     if( eeStatus != EE_OK )
     {
-        status = FAIL;
+        status = LMN_STATUS_ERROR;
     }
 
     if( ( eeStatus & EE_STATUSMASK_CLEANUP ) == EE_STATUSMASK_CLEANUP )
@@ -118,7 +131,7 @@ uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
     }
     if( ( eeStatus & EE_STATUSMASK_ERROR ) == EE_STATUSMASK_ERROR )
     {
-        status = FAIL;
+        status = LMN_STATUS_ERROR;
     }
 
     // Lock the Flash Program Erase controller
@@ -126,9 +139,9 @@ uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
     return status;
 }
 
-uint8_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
+LmnStatus_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    uint8_t status = SUCCESS;
+    LmnStatus_t status = LMN_STATUS_OK;
 
     // Unlock the Flash Program Erase controller
     HAL_FLASH_Unlock( );
@@ -137,7 +150,7 @@ uint8_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
     {
         if( EE_ReadVariable8bits( EepromVirtualAddress[addr + i], buffer + i ) != EE_OK )
         {
-            status = FAIL;
+            status = LMN_STATUS_ERROR;
             break;
         }
     }
@@ -149,12 +162,12 @@ uint8_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 
 void EepromMcuSetDeviceAddr( uint8_t addr )
 {
-    assert_param( FAIL );
+    assert_param( LMN_STATUS_ERROR );
 }
 
-uint8_t EepromMcuGetDeviceAddr( void )
+LmnStatus_t EepromMcuGetDeviceAddr( void )
 {
-    assert_param( FAIL );
+    assert_param( LMN_STATUS_ERROR );
     return 0;
 }
 

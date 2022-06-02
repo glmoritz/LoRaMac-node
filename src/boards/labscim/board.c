@@ -30,7 +30,6 @@
 #include "board-config.h"
 #include "lpm-board.h"
 #include "rtc-board.h"
-#include "sx1276-board.h"
 #include "board.h"
 #include <pthread.h> // pthread_mutex_t, pthread_mutexattr_t,
                      // pthread_mutexattr_init, pthread_mutexattr_setpshared,
@@ -189,8 +188,7 @@ void BoardInitMcu( void )
             pthread_cond_signal(gNodeInputBuffer->mutex.less);
             pthread_mutex_unlock(gNodeInputBuffer->mutex.mutex);
             socket_process_all_commands();
-        }
-      
+        }      
 
         // HAL_Init( );
 

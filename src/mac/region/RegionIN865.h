@@ -1,35 +1,38 @@
 /*!
- * \file      RegionIN865.h
+ * \file  RegionIN865.h
  *
- * \brief     Region definition for IN865
+ * \brief Region definition for IN865
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
+ * Copyright Stackforce 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2017 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- *               ___ _____ _   ___ _  _____ ___  ___  ___ ___
- *              / __|_   _/_\ / __| |/ / __/ _ \| _ \/ __| __|
- *              \__ \ | |/ _ \ (__| ' <| _| (_) |   / (__| _|
- *              |___/ |_/_/ \_\___|_|\_\_| \___/|_|_\\___|___|
- *              embedded.connectivity.solutions===============
- *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Gregory Cristian ( Semtech )
- *
- * \author    Daniel Jaeckle ( STACKFORCE )
- *
- * \author    Johannes Bruder ( STACKFORCE )
- *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+/*!
  * \defgroup  REGIONIN865 Region IN865
  *            Implementation according to LoRaWAN Specification v1.0.2.
  * \{
@@ -169,7 +172,7 @@ extern "C"
 /*!
  * Size of RFU 1 field
  */
-#define IN865_RFU1_SIZE                             1
+#define IN865_RFU1_SIZE                             0
 
 /*!
  * Size of RFU 2 field
@@ -184,7 +187,7 @@ extern "C"
 /*!
  * Bandwith of the beacon channel
  */
-#define IN865_BEACON_CHANNEL_BW                     0
+#define IN865_BEACON_CHANNEL_BW                     RAL_LORA_BW_125_KHZ
 
 /*!
  * Ping slot channel datarate
@@ -226,6 +229,11 @@ extern "C"
 #define IN865_JOIN_CHANNELS                         ( uint16_t )( LC( 1 ) | LC( 2 ) | LC( 3 ) )
 
 /*!
+ * RFU value
+ */
+#define IN865_DR_RFU_VALUE                          { 0, 0, 0, 0, 0, 0, 0, 0 }
+
+/*!
  * Data rates table definition
  */
 static const uint8_t DataratesIN865[]  = { 12, 11, 10,  9,  8,  7,  7, 50 };
@@ -243,7 +251,17 @@ static const uint8_t MaxPayloadOfDatarateIN865[] = { 51, 51, 51, 115, 242, 242, 
 /*!
  * Effective datarate offsets for receive window 1.
  */
-static const int8_t EffectiveRx1DrOffsetIN865[] = { 0, 1, 2, 3, 4, 5, -1, -2 };
+static const int8_t EffectiveRx1DrOffsetIN865[8][8] =
+{
+    { DR_0 , DR_0 , DR_0 , DR_0 , DR_0 , DR_0 , DR_1 , DR_2  }, // DR_0
+    { DR_1 , DR_0 , DR_0 , DR_0 , DR_0 , DR_0 , DR_2 , DR_3  }, // DR_1
+    { DR_2 , DR_1 , DR_0 , DR_0 , DR_0 , DR_0 , DR_3 , DR_4  }, // DR_2
+    { DR_3 , DR_2 , DR_1 , DR_0 , DR_0 , DR_0 , DR_4 , DR_5  }, // DR_3
+    { DR_4 , DR_3 , DR_2 , DR_1 , DR_0 , DR_0 , DR_5 , DR_5  }, // DR_4
+    { DR_5 , DR_4 , DR_3 , DR_2 , DR_1 , DR_0 , DR_5 , DR_7  }, // DR_5
+                     IN865_DR_RFU_VALUE                       , // DR_6
+    { DR_7 , DR_5 , DR_5 , DR_4 , DR_3 , DR_2 , DR_7 , DR_7  }, // DR_7
+};
 
 /*!
  * \brief The function gets a value of a specific phy attribute.
@@ -267,15 +285,6 @@ void RegionIN865SetBandTxDone( SetBandTxDoneParams_t* txDone );
  * \param [IN] type Sets the initialization type.
  */
 void RegionIN865InitDefaults( InitDefaultsParams_t* params );
-
-/*!
- * \brief Returns a pointer to the internal context and its size.
- *
- * \param [OUT] params Pointer to the function parameters.
- *
- * \retval      Points to a structure where the module store its non-volatile context.
- */
-void* RegionIN865GetNvmCtx( GetNvmCtxParams_t* params );
 
 /*!
  * \brief Verifies a parameter.
@@ -369,7 +378,7 @@ uint8_t RegionIN865RxParamSetupReq( RxParamSetupReqParams_t* rxParamSetupReq );
  *
  * \retval Returns the status of the operation, according to the LoRaMAC specification.
  */
-uint8_t RegionIN865NewChannelReq( NewChannelReqParams_t* newChannelReq );
+int8_t RegionIN865NewChannelReq( NewChannelReqParams_t* newChannelReq );
 
 /*!
  * \brief The function processes a TX ParamSetup Request.
@@ -389,7 +398,7 @@ int8_t RegionIN865TxParamSetupReq( TxParamSetupReqParams_t* txParamSetupReq );
  *
  * \retval Returns the status of the operation, according to the LoRaMAC specification.
  */
-uint8_t RegionIN865DlChannelReq( DlChannelReqParams_t* dlChannelReq );
+int8_t RegionIN865DlChannelReq( DlChannelReqParams_t* dlChannelReq );
 
 /*!
  * \brief Alternates the datarate of the channel for the join request.
@@ -431,13 +440,6 @@ LoRaMacStatus_t RegionIN865ChannelAdd( ChannelAddParams_t* channelAdd );
  * \retval Returns true, if the channel was removed successfully.
  */
 bool RegionIN865ChannelsRemove( ChannelRemoveParams_t* channelRemove  );
-
-/*!
- * \brief Sets the radio into continuous wave mode.
- *
- * \param [IN] continuousWave Pointer to the function parameters.
- */
-void RegionIN865SetContinuousWave( ContinuousWaveParams_t* continuousWave );
 
 /*!
  * \brief Computes new datarate according to the given offset

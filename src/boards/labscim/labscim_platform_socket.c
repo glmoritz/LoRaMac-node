@@ -16,7 +16,6 @@ buffer_circ_t *gNodeInputBuffer;
 buffer_circ_t *gNodeOutputBuffer;
 uint8_t* gNodeName;
 uint8_t* gServerAddress;
-uint64_t gIsMaster;
 uint64_t gServerPort;
 uint64_t gBufferSize;
 uint32_t gBootReceived=0;
@@ -32,18 +31,7 @@ uint8_t gAPP_KEY[32];
 #define DBG_PRINT_BUFFER_SIZE (256)
 uint8_t gByteBuffer[DBG_PRINT_BUFFER_SIZE];
 
-//printf wrappers to send the output to omnet
-int __real_printf(const char *format, ...);
-
-int __wrap_printf(const char *format, ...)
-{
-    va_list arg;
-    int64_t written;
-    va_start(arg, format);
-    written = vsnprintf(gByteBuffer, DBG_PRINT_BUFFER_SIZE,format,arg);
-    print_message(gNodeOutputBuffer, LOGLEVEL_INFO, gByteBuffer,written);
-    return written;    
-}
+extern void radio_irq( void* context );
 
 
 void labscim_protocol_boot(struct labscim_protocol_boot* msg)
@@ -51,8 +39,7 @@ void labscim_protocol_boot(struct labscim_protocol_boot* msg)
 	struct loramac_node_setup* cns = (struct loramac_node_setup*)msg->message;
 	memcpy((void*)mac_addr,(void*)cns->mac_addr,sizeof(uint8_t)*8);
 	labscim_set_time(cns->startup_time);
-	gBootReceived = 1;
-    gIsMaster = cns->IsMaster;
+	gBootReceived = 1;    
     gTimeReference = cns->TimeReference;
     memcpy(gAPP_KEY,cns->AppKey,32);    
 	free(msg);
@@ -135,6 +122,7 @@ void socket_process_command(struct labscim_protocol_header *hdr)
 #endif
         labscim_set_time(((struct labscim_radio_response *)(hdr))->current_time);
         labscim_radio_incoming_command((struct labscim_radio_response *)(hdr));
+        radio_irq(NULL);
         break;
     }
     case LABSCIM_SIGNAL:
@@ -197,7 +185,7 @@ void *socket_pop_command(uint32_t command, uint32_t sequence_number)
     return NULL;
 }
 
-void *socket_wait_for_command(uint32_t command, uint32_t sequence_number)
+void* socket_wait_for_command(uint32_t command, uint32_t sequence_number)
 {
     void *cmd = NULL;
     cmd = socket_pop_command(command, sequence_number);

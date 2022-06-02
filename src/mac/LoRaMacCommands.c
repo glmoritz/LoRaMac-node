@@ -1,32 +1,49 @@
-/*
- / _____)             _              | |
-( (____  _____ ____ _| |_ _____  ____| |__
- \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- _____) ) ____| | | || |_| ____( (___| | | |
-(______/|_____)_|_|_| \__)_____)\____)_| |_|
-    (C)2013 Semtech
- ___ _____ _   ___ _  _____ ___  ___  ___ ___
-/ __|_   _/_\ / __| |/ / __/ _ \| _ \/ __| __|
-\__ \ | |/ _ \ (__| ' <| _| (_) |   / (__| _|
-|___/ |_/_/ \_\___|_|\_\_| \___/|_|_\\___|___|
-embedded.connectivity.solutions===============
-
-Description: LoRa MAC commands
-
-License: Revised BSD License, see LICENSE.TXT file include in the project
-
-Maintainer: Miguel Luis ( Semtech ), Daniel Jaeckle ( STACKFORCE ), Johannes Bruder ( STACKFORCE )
-*/
+/*!
+ * \file  LoRaMacCommands.c
+ *
+ * \brief LoRa MAC commands
+ *
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
+ * Copyright Stackforce 2021. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
+ *
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
 #include <stddef.h>
 
 #include "utilities.h"
 #include "LoRaMacCommands.h"
 #include "LoRaMacConfirmQueue.h"
 
+#ifndef NUM_OF_MAC_COMMANDS
 /*!
  * Number of MAC Command slots
  */
-#define NUM_OF_MAC_COMMANDS 15
+#define NUM_OF_MAC_COMMANDS 32
+#endif
 
 /*!
  * Size of the CID field of MAC commands
@@ -68,14 +85,9 @@ typedef struct sLoRaMacCommandsCtx
 } LoRaMacCommandsCtx_t;
 
 /*!
- * Callback function to notify the upper layer about context change
- */
-static LoRaMacCommandsNvmEvent CommandsNvmCtxChanged;
-
-/*!
  * Non-volatile module context.
  */
-static LoRaMacCommandsCtx_t NvmCtx;
+static LoRaMacCommandsCtx_t CommandsCtx;
 
 /* Memory management functions */
 
@@ -108,7 +120,7 @@ static MacCommand_t* MallocNewMacCommandSlot( void )
 {
     uint8_t itr = 0;
 
-    while( IsSlotFree( ( const MacCommand_t* )&NvmCtx.MacCommandSlots[itr] ) == false )
+    while( IsSlotFree( ( const MacCommand_t* )&CommandsCtx.MacCommandSlots[itr] ) == false )
     {
         itr++;
         if( itr == NUM_OF_MAC_COMMANDS )
@@ -117,7 +129,7 @@ static MacCommand_t* MallocNewMacCommandSlot( void )
         }
     }
 
-    return &NvmCtx.MacCommandSlots[itr];
+    return &CommandsCtx.MacCommandSlots[itr];
 }
 
 /*!
@@ -278,58 +290,28 @@ static bool IsSticky( uint8_t cid )
 {
     switch( cid )
     {
+        case MOTE_MAC_RESET_IND:
+        case MOTE_MAC_REKEY_IND:
+        case MOTE_MAC_DEVICE_MODE_IND:
         case MOTE_MAC_DL_CHANNEL_ANS:
         case MOTE_MAC_RX_PARAM_SETUP_ANS:
         case MOTE_MAC_RX_TIMING_SETUP_ANS:
         case MOTE_MAC_TX_PARAM_SETUP_ANS:
+        case MOTE_MAC_PING_SLOT_CHANNEL_ANS:
             return true;
         default:
             return false;
     }
 }
 
-/*
- * \brief Wrapper function for the NvmCtx
- */
-static void NvmCtxCallback( void )
-{
-    if( CommandsNvmCtxChanged != NULL )
-    {
-        CommandsNvmCtxChanged( );
-    }
-}
-
-LoRaMacCommandStatus_t LoRaMacCommandsInit( LoRaMacCommandsNvmEvent commandsNvmCtxChanged )
+LoRaMacCommandStatus_t LoRaMacCommandsInit( void )
 {
     // Initialize with default
-    memset1( ( uint8_t* )&NvmCtx, 0, sizeof( NvmCtx ) );
+    memset1( ( uint8_t* )&CommandsCtx, 0, sizeof( CommandsCtx ) );
 
-    LinkedListInit( &NvmCtx.MacCommandList );
-
-    // Assign callback
-    CommandsNvmCtxChanged = commandsNvmCtxChanged;
+    LinkedListInit( &CommandsCtx.MacCommandList );
 
     return LORAMAC_COMMANDS_SUCCESS;
-}
-
-LoRaMacCommandStatus_t LoRaMacCommandsRestoreNvmCtx( void* commandsNvmCtx )
-{
-    // Restore module context
-    if( commandsNvmCtx != NULL )
-    {
-        memcpy1( ( uint8_t* )&NvmCtx, ( uint8_t* )commandsNvmCtx, sizeof( NvmCtx ) );
-        return LORAMAC_COMMANDS_SUCCESS;
-    }
-    else
-    {
-        return LORAMAC_COMMANDS_ERROR_NPE;
-    }
-}
-
-void* LoRaMacCommandsGetNvmCtx( size_t* commandsNvmCtxSize )
-{
-    *commandsNvmCtxSize = sizeof( NvmCtx );
-    return &NvmCtx;
 }
 
 LoRaMacCommandStatus_t LoRaMacCommandsAddCmd( uint8_t cid, uint8_t* payload, size_t payloadSize )
@@ -349,7 +331,7 @@ LoRaMacCommandStatus_t LoRaMacCommandsAddCmd( uint8_t cid, uint8_t* payload, siz
     }
 
     // Add it to the list of Mac commands
-    if( LinkedListAdd( &NvmCtx.MacCommandList, newCmd ) == false )
+    if( LinkedListAdd( &CommandsCtx.MacCommandList, newCmd ) == false )
     {
         return LORAMAC_COMMANDS_ERROR;
     }
@@ -360,9 +342,7 @@ LoRaMacCommandStatus_t LoRaMacCommandsAddCmd( uint8_t cid, uint8_t* payload, siz
     memcpy1( ( uint8_t* )newCmd->Payload, payload, payloadSize );
     newCmd->IsSticky = IsSticky( cid );
 
-    NvmCtx.SerializedCmdsSize += ( CID_FIELD_SIZE + payloadSize );
-
-    NvmCtxCallback( );
+    CommandsCtx.SerializedCmdsSize += ( CID_FIELD_SIZE + payloadSize );
 
     return LORAMAC_COMMANDS_SUCCESS;
 }
@@ -375,20 +355,18 @@ LoRaMacCommandStatus_t LoRaMacCommandsRemoveCmd( MacCommand_t* macCmd )
     }
 
     // Remove the Mac command element from MacCommandList
-    if( LinkedListRemove( &NvmCtx.MacCommandList, macCmd ) == false )
+    if( LinkedListRemove( &CommandsCtx.MacCommandList, macCmd ) == false )
     {
         return LORAMAC_COMMANDS_ERROR_CMD_NOT_FOUND;
     }
 
-    NvmCtx.SerializedCmdsSize -= ( CID_FIELD_SIZE + macCmd->PayloadSize );
+    CommandsCtx.SerializedCmdsSize -= ( CID_FIELD_SIZE + macCmd->PayloadSize );
 
     // Free the MacCommand Slot
     if( FreeMacCommandSlot( macCmd ) == false )
     {
         return LORAMAC_COMMANDS_ERROR;
     }
-
-    NvmCtxCallback( );
 
     return LORAMAC_COMMANDS_SUCCESS;
 }
@@ -398,7 +376,7 @@ LoRaMacCommandStatus_t LoRaMacCommandsGetCmd( uint8_t cid, MacCommand_t** macCmd
     MacCommand_t* curElement;
 
     // Start at the head of the list
-    curElement = NvmCtx.MacCommandList.First;
+    curElement = CommandsCtx.MacCommandList.First;
 
     // Loop through all elements until we find the element with the given CID
     while( ( curElement != NULL ) && ( curElement->CID != cid ) )
@@ -423,7 +401,7 @@ LoRaMacCommandStatus_t LoRaMacCommandsRemoveNoneStickyCmds( void )
     MacCommand_t* nexElement;
 
     // Start at the head of the list
-    curElement = NvmCtx.MacCommandList.First;
+    curElement = CommandsCtx.MacCommandList.First;
 
     // Loop through all elements
     while( curElement != NULL )
@@ -440,8 +418,6 @@ LoRaMacCommandStatus_t LoRaMacCommandsRemoveNoneStickyCmds( void )
         }
     }
 
-    NvmCtxCallback( );
-
     return LORAMAC_COMMANDS_SUCCESS;
 }
 
@@ -451,7 +427,7 @@ LoRaMacCommandStatus_t LoRaMacCommandsRemoveStickyAnsCmds( void )
     MacCommand_t* nexElement;
 
     // Start at the head of the list
-    curElement = NvmCtx.MacCommandList.First;
+    curElement = CommandsCtx.MacCommandList.First;
 
     // Loop through all elements
     while( curElement != NULL )
@@ -464,8 +440,6 @@ LoRaMacCommandStatus_t LoRaMacCommandsRemoveStickyAnsCmds( void )
         curElement = nexElement;
     }
 
-    NvmCtxCallback( );
-
     return LORAMAC_COMMANDS_SUCCESS;
 }
 
@@ -475,13 +449,13 @@ LoRaMacCommandStatus_t LoRaMacCommandsGetSizeSerializedCmds( size_t* size )
     {
         return LORAMAC_COMMANDS_ERROR_NPE;
     }
-    *size = NvmCtx.SerializedCmdsSize;
+    *size = CommandsCtx.SerializedCmdsSize;
     return LORAMAC_COMMANDS_SUCCESS;
 }
 
 LoRaMacCommandStatus_t LoRaMacCommandsSerializeCmds( size_t availableSize, size_t* effectiveSize, uint8_t* buffer )
 {
-    MacCommand_t* curElement = NvmCtx.MacCommandList.First;
+    MacCommand_t* curElement = CommandsCtx.MacCommandList.First;
     MacCommand_t* nextElement;
     uint8_t itr = 0;
 
@@ -522,32 +496,6 @@ LoRaMacCommandStatus_t LoRaMacCommandsSerializeCmds( size_t availableSize, size_
     return LORAMAC_COMMANDS_SUCCESS;
 }
 
-LoRaMacCommandStatus_t LoRaMacCommandsStickyCmdsPending( bool* cmdsPending )
-{
-    if( cmdsPending == NULL )
-    {
-        return LORAMAC_COMMANDS_ERROR_NPE;
-    }
-    MacCommand_t* curElement;
-    curElement = NvmCtx.MacCommandList.First;
-
-    *cmdsPending = false;
-
-    // Loop through all elements
-    while( curElement != NULL )
-    {
-        if( curElement->IsSticky == true )
-        {
-            // Found one sticky MAC command
-            *cmdsPending = true;
-            return LORAMAC_COMMANDS_SUCCESS;
-        }
-        curElement = curElement->Next;
-    }
-
-    return LORAMAC_COMMANDS_SUCCESS;
-}
-
 uint8_t LoRaMacCommandsGetCmdSize( uint8_t cid )
 {
     uint8_t cidSize = 0;
@@ -555,6 +503,12 @@ uint8_t LoRaMacCommandsGetCmdSize( uint8_t cid )
     // Decode Frame MAC commands
     switch( cid )
     {
+        case SRV_MAC_RESET_CONF:
+        {
+            // cid + Serv_LoRaWAN_version
+            cidSize = 2;
+            break;
+        }
         case SRV_MAC_LINK_CHECK_ANS:
         {
             // cid + Margin + GwCnt
@@ -607,6 +561,36 @@ uint8_t LoRaMacCommandsGetCmdSize( uint8_t cid )
         {
             // cid + ChIndex + Frequency (3)
             cidSize = 5;
+            break;
+        }
+        case SRV_MAC_REKEY_CONF:
+        {
+            // cid + Serv_LoRaWAN_version
+            cidSize = 2;
+            break;
+        }
+        case SRV_MAC_ADR_PARAM_SETUP_REQ:
+        {
+            // cid + ADRparam
+            cidSize = 2;
+            break;
+        }
+        case SRV_MAC_FORCE_REJOIN_REQ:
+        {
+            // cid + Payload (2)
+            cidSize = 3;
+            break;
+        }
+        case SRV_MAC_REJOIN_PARAM_REQ:
+        {
+            // cid + Payload (1)
+            cidSize = 2;
+            break;
+        }
+        case SRV_MAC_DEVICE_MODE_CONF:
+        {
+            // cid + Class
+            cidSize = 2;
             break;
         }
         case SRV_MAC_DEVICE_TIME_ANS:

@@ -1,35 +1,39 @@
 /*!
- * \file      RegionCommon.c
+ * \file  RegionCommon.c
  *
- * \brief     LoRa MAC common region implementation
+ * \brief LoRa MAC common region implementation
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
+ * Copyright Stackforce 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2017 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- *               ___ _____ _   ___ _  _____ ___  ___  ___ ___
- *              / __|_   _/_\ / __| |/ / __/ _ \| _ \/ __| __|
- *              \__ \ | |/ _ \ (__| ' <| _| (_) |   / (__| _|
- *              |___/ |_/_/ \_\___|_|\_\_| \___/|_|_\\___|___|
- *              embedded.connectivity.solutions===============
- *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Gregory Cristian ( Semtech )
- *
- * \author    Daniel Jaeckle ( STACKFORCE )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <math.h>
-#include "radio.h"
+#include "loramac_radio.h"
 #include "utilities.h"
 #include "RegionCommon.h"
 #include "systime.h"
@@ -337,7 +341,7 @@ TimerTime_t RegionCommonUpdateBandTimeOff( bool joined, Band_t* bands,
         // when the duty cycle is off, or the TimeCredits of the band
         // is higher than the credit costs for the transmission.
         if( ( bands[i].TimeCredits > creditCosts ) ||
-            ( dutyCycleEnabled == false ) )
+            ( ( dutyCycleEnabled == false ) && ( joined == true ) ) )
         {
             bands[i].ReadyForTransmission = true;
             // This band is a potential candidate for an
@@ -350,24 +354,22 @@ TimerTime_t RegionCommonUpdateBandTimeOff( bool joined, Band_t* bands,
             // for the next transmission.
             bands[i].ReadyForTransmission = false;
 
-            // Differentiate the calculation if the device is joined or not.
-            if( joined == true )
+            if( bands[i].MaxTimeCredits > creditCosts )
             {
-                if( bands[i].MaxTimeCredits > creditCosts )
-                {
-                    // The band can only be taken into account, if the maximum credits
-                    // of the band are higher than the credit costs.
-                    // We calculate the minTimeToWait among the bands which are not
-                    // ready for transmission and which are potentially available
-                    // for a transmission in the future.
-                    minTimeToWait = MIN( minTimeToWait, ( creditCosts - bands[i].TimeCredits ) );
-                    // This band is a potential candidate for an
-                    // upcoming transmission (even if its time credits are not enough
-                    // at the moment), so increase the counter.
-                    validBands++;
-                }
+                // The band can only be taken into account, if the maximum credits
+                // of the band are higher than the credit costs.
+                // We calculate the minTimeToWait among the bands which are not
+                // ready for transmission and which are potentially available
+                // for a transmission in the future.
+                minTimeToWait = MIN( minTimeToWait, ( creditCosts - bands[i].TimeCredits ) );
+                // This band is a potential candidate for an
+                // upcoming transmission (even if its time credits are not enough
+                // at the moment), so increase the counter.
+                validBands++;
             }
-            else
+
+            // Apply a special calculation if the device is not joined.
+            if( joined == false )
             {
                 SysTime_t backoffTimeRange = {
                     .Seconds    = 0,
@@ -451,14 +453,22 @@ uint8_t RegionCommonLinkAdrReqVerifyParams( RegionCommonLinkAdrReqVerifyParams_t
     if( status != 0 )
     {
         // Verify datarate. The variable phyParam. Value contains the minimum allowed datarate.
-        if( RegionCommonChanVerifyDr( verifyParams->NbChannels, verifyParams->ChannelsMask, datarate,
+        if( datarate == 0x0F )
+        { // 0xF means that the device MUST ignore that field, and keep the current parameter value.
+            datarate =  verifyParams->CurrentDatarate;
+        }
+        else if( RegionCommonChanVerifyDr( verifyParams->NbChannels, verifyParams->ChannelsMask, datarate,
                                       verifyParams->MinDatarate, verifyParams->MaxDatarate, verifyParams->Channels  ) == false )
         {
             status &= 0xFD; // Datarate KO
         }
 
         // Verify tx power
-        if( RegionCommonValueInRange( txPower, verifyParams->MaxTxPower, verifyParams->MinTxPower ) == 0 )
+        if( txPower == 0x0F )
+        { // 0xF means that the device MUST ignore that field, and keep the current parameter value.
+            txPower =  verifyParams->CurrentTxPower;
+        }
+        else if( RegionCommonValueInRange( txPower, verifyParams->MaxTxPower, verifyParams->MinTxPower ) == 0 )
         {
             // Verify if the maximum TX power is exceeded
             if( verifyParams->MaxTxPower > txPower )
@@ -476,7 +486,7 @@ uint8_t RegionCommonLinkAdrReqVerifyParams( RegionCommonLinkAdrReqVerifyParams_t
     if( status == 0x07 )
     {
         if( nbRepetitions == 0 )
-        { // Restore the default value according to the LoRaWAN specification
+        { // Set nbRep to the default value of 1.
             nbRepetitions = 1;
         }
     }
@@ -522,12 +532,7 @@ void RegionCommonRxBeaconSetup( RegionCommonRxBeaconSetupParams_t* rxBeaconSetup
     uint8_t datarate;
 
     // Set the radio into sleep mode
-    Radio.Sleep( );
-
-    // Setup frequency and payload length
-    Radio.SetChannel( rxBeaconSetupParams->Frequency );
-    Radio.SetMaxPayloadLength( MODEM_LORA, rxBeaconSetupParams->BeaconSize );
-
+    loramac_radio_set_sleep( );
     // Check the RX continuous mode
     if( rxBeaconSetupParams->RxTime != 0 )
     {
@@ -538,10 +543,21 @@ void RegionCommonRxBeaconSetup( RegionCommonRxBeaconSetupParams_t* rxBeaconSetup
     datarate = rxBeaconSetupParams->Datarates[rxBeaconSetupParams->BeaconDatarate];
 
     // Setup radio
-    Radio.SetRxConfig( MODEM_LORA, rxBeaconSetupParams->BeaconChannelBW, datarate,
-                       1, 0, 10, rxBeaconSetupParams->SymbolTimeout, true, rxBeaconSetupParams->BeaconSize, false, 0, 0, false, rxContinuous );
-
-    Radio.Rx( rxBeaconSetupParams->RxTime );
+    loramac_radio_lora_cfg_params_t lora_params = {
+        .rf_freq_in_hz = rxBeaconSetupParams->Frequency,
+        .sf = ( ral_lora_sf_t ) datarate,
+        .bw = ( ral_lora_bw_t ) rxBeaconSetupParams->BeaconChannelBW,
+        .cr = RAL_LORA_CR_4_5,
+        .preamble_len_in_symb = 10,
+        .is_pkt_len_fixed = true,
+        .pld_len_in_bytes = rxBeaconSetupParams->BeaconSize,
+        .is_crc_on = false,
+        .invert_iq_is_on = false,
+        .rx_sync_timeout_in_symb = rxBeaconSetupParams->SymbolTimeout,
+        .is_rx_continuous = rxContinuous,
+    };
+    loramac_radio_lora_set_cfg( &lora_params );
+    loramac_radio_set_rx( rxBeaconSetupParams->RxTime );
 }
 
 void RegionCommonCountNbOfEnabledChannels( RegionCommonCountNbOfEnabledChannelsParams_t* countNbOfEnabledChannelsParams,
@@ -631,15 +647,23 @@ LoRaMacStatus_t RegionCommonIdentifyChannels( RegionCommonIdentifyChannelsParam_
     }
 }
 
-int8_t RegionCommonGetNextLowerTxDr( int8_t dr, int8_t minDr )
+int8_t RegionCommonGetNextLowerTxDr( RegionCommonGetNextLowerTxDrParams_t *params )
 {
-    if( dr == minDr )
+    int8_t drLocal = params->CurrentDr;
+
+    if( params->CurrentDr == params->MinDr )
     {
-        return minDr;
+        return params->MinDr;
     }
     else
     {
-        return( dr - 1 );
+        do
+        {
+            drLocal = ( drLocal - 1 );
+        } while( ( drLocal != params->MinDr ) &&
+                 ( RegionCommonChanVerifyDr( params->NbChannels, params->ChannelsMask, drLocal, params->MinDr, params->MaxDr, params->Channels  ) == false ) );
+
+        return drLocal;
     }
 }
 
@@ -655,10 +679,10 @@ uint32_t RegionCommonGetBandwidth( uint32_t drIndex, const uint32_t* bandwidths 
     {
         default:
         case 125000:
-            return 0;
+            return RAL_LORA_BW_125_KHZ;
         case 250000:
-            return 1;
+            return RAL_LORA_BW_250_KHZ;
         case 500000:
-            return 2;
+            return RAL_LORA_BW_500_KHZ;
     }
 }

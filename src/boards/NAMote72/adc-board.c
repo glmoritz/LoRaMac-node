@@ -1,24 +1,35 @@
 /*!
- * \file      adc-board.c
+ * \file  adc-board.c
  *
- * \brief     Target board ADC driver implementation
+ * \brief Target board ADC driver implementation
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2017 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Gregory Cristian ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "stm32l1xx.h"
 #include "board-config.h"
@@ -28,7 +39,7 @@ ADC_HandleTypeDef AdcHandle;
 
 void AdcMcuInit( Adc_t *obj, PinNames adcInput )
 {
-    AdcHandle.Instance = ( ADC_TypeDef* )ADC1_BASE;
+    AdcHandle.Instance = ADC1;
 
     __HAL_RCC_ADC1_CLK_ENABLE( );
 
@@ -70,6 +81,11 @@ uint16_t AdcMcuReadChannel( Adc_t *obj, uint32_t channel )
     {
     }
 
+    // Wait the the Vrefint used by adc is set
+    while( __HAL_PWR_GET_FLAG( PWR_FLAG_VREFINTRDY ) == RESET )
+    {
+    }
+
     __HAL_RCC_ADC1_CLK_ENABLE( );
 
     adcConf.Channel = channel;
@@ -79,22 +95,15 @@ uint16_t AdcMcuReadChannel( Adc_t *obj, uint32_t channel )
     HAL_ADC_ConfigChannel( &AdcHandle, &adcConf );
 
     // Enable ADC1
-    if( ADC_Enable( &AdcHandle ) == HAL_OK )
-    {
-        // Start ADC Software Conversion
-        HAL_ADC_Start( &AdcHandle );
+    // Start ADC Software Conversion
+    HAL_ADC_Start( &AdcHandle );
 
-        HAL_ADC_PollForConversion( &AdcHandle, HAL_MAX_DELAY );
+    HAL_ADC_PollForConversion( &AdcHandle, HAL_MAX_DELAY );
 
-        adcData = HAL_ADC_GetValue( &AdcHandle );
-    }
+    adcData = HAL_ADC_GetValue( &AdcHandle );
 
-    ADC_ConversionStop_Disable( &AdcHandle );
+    __HAL_ADC_DISABLE( &AdcHandle );
 
-    if( ( adcConf.Channel == ADC_CHANNEL_TEMPSENSOR ) || ( adcConf.Channel == ADC_CHANNEL_VREFINT ) )
-    {
-        HAL_ADC_DeInit( &AdcHandle );
-    }
     __HAL_RCC_ADC1_CLK_DISABLE( );
 
     // Disable HSI

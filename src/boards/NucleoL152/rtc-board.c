@@ -1,26 +1,36 @@
 /*!
- * \file      rtc-board.c
+ * \file  rtc-board.c
  *
- * \brief     Target board RTC timer and low power modes management
+ * \brief Target board RTC timer and low power modes management
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
+ * Copyright MCD Application Team (C)( STMicroelectronics International ). All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2017 Semtech - STMicroelectronics
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Gregory Cristian ( Semtech )
- *
- * \author    MCD Application Team (C)( STMicroelectronics International )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <math.h>
 #include <time.h>
@@ -31,6 +41,7 @@
 #include "timer.h"
 #include "systime.h"
 #include "gpio.h"
+#include "sysIrqHandlers.h"
 #include "lpm-board.h"
 #include "rtc-board.h"
 
@@ -93,16 +104,6 @@ typedef struct
  * \brief Indicates if the RTC is already Initialized or not
  */
 static bool RtcInitialized = false;
-
-/*!
- * \brief Indicates if the RTC Wake Up Time is calibrated or not
- */
-static bool McuWakeUpTimeInitialized = false;
-
-/*!
- * \brief Compensates MCU wakeup time
- */
-static int16_t McuWakeUpTimeCal = 0;
 
 /*!
  * Number of days in each month on a normal year
@@ -289,19 +290,13 @@ void RtcDelayMs( uint32_t delay )
 void RtcSetAlarm( uint32_t timeout )
 {
     // We don't go in Low Power mode for timeout below MIN_ALARM_DELAY
-    if( ( int64_t )( MIN_ALARM_DELAY + McuWakeUpTimeCal ) < ( int64_t )( timeout - RtcGetTimerElapsedTime( ) ) )
+    if( ( int64_t )MIN_ALARM_DELAY < ( int64_t )( timeout - RtcGetTimerElapsedTime( ) ) )
     {
         LpmSetStopMode( LPM_RTC_ID, LPM_ENABLE );
     }
     else
     {
         LpmSetStopMode( LPM_RTC_ID, LPM_DISABLE );
-    }
-
-    // In case stop mode is required
-    if( LpmGetMode( ) == LPM_STOP_MODE )
-    {
-        timeout = timeout - McuWakeUpTimeCal;
     }
 
     RtcStartAlarm( timeout );
@@ -440,41 +435,6 @@ uint32_t RtcGetTimerElapsedTime( void )
   uint32_t calendarValue = ( uint32_t )RtcGetCalendarValue( &date, &time );
 
   return( ( uint32_t )( calendarValue - RtcTimerContext.Time ) );
-}
-
-void RtcSetMcuWakeUpTime( void )
-{
-    RTC_TimeTypeDef time;
-    RTC_DateTypeDef date;
-
-    uint32_t now, hit;
-    int16_t mcuWakeUpTime;
-
-    if( ( McuWakeUpTimeInitialized == false ) &&
-       ( HAL_NVIC_GetPendingIRQ( RTC_Alarm_IRQn ) == 1 ) )
-    {
-        /* WARNING: Works ok if now is below 30 days
-         *          it is ok since it's done once at first alarm wake-up
-         */
-        McuWakeUpTimeInitialized = true;
-        now = ( uint32_t )RtcGetCalendarValue( &date, &time );
-
-        HAL_RTC_GetAlarm( &RtcHandle, &RtcAlarm, RTC_ALARM_A, RTC_FORMAT_BIN );
-        hit = RtcAlarm.AlarmTime.Seconds +
-              60 * ( RtcAlarm.AlarmTime.Minutes +
-              60 * ( RtcAlarm.AlarmTime.Hours +
-              24 * ( RtcAlarm.AlarmDateWeekDay ) ) );
-        hit = ( hit << N_PREDIV_S ) + ( PREDIV_S - RtcAlarm.AlarmTime.SubSeconds );
-
-        mcuWakeUpTime = ( int16_t )( ( now - hit ) );
-        McuWakeUpTimeCal += mcuWakeUpTime;
-        //PRINTF( 3, "Cal=%d, %d\n", McuWakeUpTimeCal, mcuWakeUpTime);
-    }
-}
-
-int16_t RtcGetMcuWakeUpTime( void )
-{
-    return McuWakeUpTimeCal;
 }
 
 static uint64_t RtcGetCalendarValue( RTC_DateTypeDef* date, RTC_TimeTypeDef* time )

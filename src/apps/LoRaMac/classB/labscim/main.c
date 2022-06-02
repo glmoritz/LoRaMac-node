@@ -487,7 +487,7 @@ static bool SendFrame( void )
     AppData.BufferSize = mcpsReq.Req.Unconfirmed.fBufferSize;
 
     LoRaMacStatus_t status;
-    LabscimSignalEmit(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
+    LabscimSignalEmitDouble(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
     status = LoRaMacMcpsRequest( &mcpsReq );
     labscim_printf( "\n###### ===== MCPS-Request ==== ######\n" );
     labscim_printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status]);
@@ -953,8 +953,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         uint64_t *tx_time = (uint64_t *)mcpsIndication->Buffer;
         if(tx_time[0]==LABSCIM_PROTOCOL_MAGIC_NUMBER)
         {
-            LabscimSignalEmit(gPacketLatencySignal, (double)(gCurrentTime - tx_time[2]) / 1e6);
-            LabscimSignalEmit(gRTTSignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
+            LabscimSignalEmitDouble(gPacketLatencySignal, (double)(gCurrentTime - tx_time[2]) / 1e6);
+            LabscimSignalEmitDouble(gRTTSignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
         }        
     }
 
@@ -1621,4 +1621,22 @@ int main(int argc, char const *argv[])
             }
         }
     }
+}
+
+void labscim_signal_arrived(struct labscim_signal* sig)
+{
+    //nothing to do for now
+
+	// if (sig->signal_id == gPacketReceivedSignal)
+	// {
+	// 	struct signal_info* si = (struct signal_info*)(sig->signal);		
+	// 	if (si->signature == gSignature)
+	// 	{
+	// 		LabscimSignalEmitDouble(gPacketLatencySignal, si->latency);						
+	// 		LabscimSignalEmitDouble(gAoIMinSignal, si->aoi_min);
+	// 		LabscimSignalEmitDouble(gAoIMaxSignal, si->aoi_max);
+	// 		LabscimSignalEmitDouble(gAoIAreaSignal, si->aoi_area);
+	// 	}
+	// }
+	// free(sig);
 }

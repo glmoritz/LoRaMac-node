@@ -23,9 +23,9 @@
 #include "utilities.h"
 #include "eeprom-board.h"
 
-uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
+LmnStatus_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
-    uint8_t status = FAIL;
+    uint8_t status = LMN_STATUS_ERROR;
 
     // assert_param( ( DATA_EEPROM_BASE + addr ) >= DATA_EEPROM_BASE );
     // assert_param( buffer != NULL );
@@ -50,14 +50,14 @@ uint8_t EepromMcuWriteBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
     return status;
 }
 
-uint8_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
+LmnStatus_t EepromMcuReadBuffer( uint16_t addr, uint8_t *buffer, uint16_t size )
 {
     // assert_param( ( DATA_EEPROM_BASE + addr ) >= DATA_EEPROM_BASE );
     // assert_param( buffer != NULL );
     // assert_param( size < ( DATA_EEPROM_BANK2_END - DATA_EEPROM_BASE ) );
 
     // memcpy1( buffer, ( uint8_t* )( DATA_EEPROM_BASE + addr ), size );
-    return SUCCESS;
+    return LMN_STATUS_OK;
 }
 
 void EepromMcuSetDeviceAddr( uint8_t addr )
@@ -65,7 +65,7 @@ void EepromMcuSetDeviceAddr( uint8_t addr )
     //assert_param( FAIL );
 }
 
-uint8_t EepromMcuGetDeviceAddr( void )
+LmnStatus_t EepromMcuGetDeviceAddr( void )
 {
     //assert_param( FAIL );
     return 0;
