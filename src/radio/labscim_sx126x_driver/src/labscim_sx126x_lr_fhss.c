@@ -41,6 +41,13 @@
 #include "labscim_sx126x_lr_fhss.h"
 #include "labscim_sx126x_hal.h"
 
+#include "labscim_linked_list.h"
+#include "labscim_protocol.h"
+#include "labscim_socket.h"
+#include "labscim_log_levels.h"
+#include "labscim_loramac_setup.h"
+#include "labscim-lora-radio-protocol.h"
+
 /*
  * -----------------------------------------------------------------------------
  * --- PRIVATE MACROS-----------------------------------------------------------
@@ -59,7 +66,7 @@
 #define SX126X_LR_FHSS_DISABLE_HOPPING ( 0 )
 #define SX126X_LR_FHSS_ENABLE_HOPPING ( 1 )
 
-#define SX126X_LR_FHSS_HOP_TABLE_SIZE ( 16 )
+#define SX126X_LR_FHSS_HOP_TABLE_SIZE ( 256 )
 #define SX126X_LR_FHSS_HOP_ENTRY_SIZE ( 6 )
 
 #define SX126X_LR_FHSS_GRID_3906_HZ_PLL_STEPS ( 4096 )
@@ -78,6 +85,10 @@
  * -----------------------------------------------------------------------------
  * --- PRIVATE VARIABLES -------------------------------------------------------
  */
+struct lora_set_hopping* gHopParams=NULL;
+uint8_t gHopPtr = 0;
+extern buffer_circ_t *gNodeInputBuffer;
+extern buffer_circ_t *gNodeOutputBuffer;
 
 /*
  * -----------------------------------------------------------------------------
@@ -93,7 +104,7 @@
  *
  * @returns Operation status
  */
-sx126x_status_t sx126x_lr_fhss_write_hop_config( const void* context, const uint8_t nb_bytes, const uint8_t nb_hops );
+sx126x_status_t sx126x_lr_fhss_write_hop_config( const void* context, const uint8_t nb_bytes, const uint8_t nb_hops, const uint8_t nb_headers );
 
 /**
  * @brief Write a hop frequency/duration pair to the radio hop table
@@ -141,7 +152,7 @@ sx126x_status_t sx126x_lr_fhss_init( const void* context, const sx126x_lr_fhss_p
 
     const uint8_t mod_params_buf[] = {
         SX126X_SET_MODULATION_PARAMS, 32, 0, 0, SX126X_GFSK_PULSE_SHAPE_BT_1, 0, 0, 0, 0,
-    };
+    };    
 
     sx126x_status_t status = sx126x_set_pkt_type( context, SX126X_PKT_TYPE_LR_FHSS );
     if( status != SX126X_STATUS_OK )
@@ -149,20 +160,23 @@ sx126x_status_t sx126x_lr_fhss_init( const void* context, const sx126x_lr_fhss_p
         return status;
     }
 
-    status = ( sx126x_status_t ) sx126x_hal_write( context, pkt_params_buf, sizeof( pkt_params_buf ), 0, 0 );
-    if( status != SX126X_STATUS_OK )
-    {
-        return status;
-    }
+    uint32_t sequence_number = radio_command(gNodeOutputBuffer, LORA_RADIO_SET_FHSS_PARAMS, (uint8_t *)(params), sizeof(sx126x_lr_fhss_params_t));
+    return SX126X_STATUS_OK;
 
-    status = ( sx126x_status_t ) sx126x_hal_write( context, mod_params_buf, sizeof( mod_params_buf ), 0, 0 );
-    if( status != SX126X_STATUS_OK )
-    {
-        return status;
-    }
+    // status = ( sx126x_status_t ) sx126x_hal_write( context, pkt_params_buf, sizeof( pkt_params_buf ), 0, 0 );
+    // if( status != SX126X_STATUS_OK )
+    // {
+    //     return status;
+    // }
 
-    status = sx126x_set_buffer_base_address( context, 0x00, 0x00 );
-    return status;
+    // status = ( sx126x_status_t ) sx126x_hal_write( context, mod_params_buf, sizeof( mod_params_buf ), 0, 0 );
+    // if( status != SX126X_STATUS_OK )
+    // {
+    //     return status;
+    // }
+
+    //status = sx126x_set_buffer_base_address( context, 0x00, 0x00 );
+    //return status;
 }
 
 sx126x_status_t sx126x_lr_fhss_process_parameters( const sx126x_lr_fhss_params_t* params, uint16_t hop_sequence_id,
@@ -218,7 +232,7 @@ sx126x_status_t sx126x_lr_fhss_process_parameters( const sx126x_lr_fhss_params_t
 sx126x_status_t sx126x_lr_fhss_write_hop_sequence_head( const void* context, const sx126x_lr_fhss_params_t* params,
                                                         sx126x_lr_fhss_state_t* state )
 {
-    sx126x_status_t status = sx126x_lr_fhss_write_hop_config( context, state->digest.nb_bytes, state->digest.nb_hops );
+    sx126x_status_t status = sx126x_lr_fhss_write_hop_config( context, state->digest.nb_bytes, state->digest.nb_hops, params->lr_fhss_params.header_count );
     if( status != SX126X_STATUS_OK )
     {
         return status;
@@ -287,14 +301,17 @@ sx126x_status_t sx126x_lr_fhss_write_hop_sequence_head( const void* context, con
             state->next_freq_in_pll_steps = sx126x_lr_fhss_get_next_freq_in_pll_steps( params, state );
         }
     }
+    uint32_t sequence_number = radio_command(gNodeOutputBuffer, LORA_RADIO_SET_HOPPING, (uint8_t *)(gHopParams), FIXED_SIZEOF_LORA_SET_HOPPING + gHopParams->num_hops*sizeof(struct hop_entry));
+    return SX126X_STATUS_OK;
 
-    return status;
+    //return status;
 }
 
 sx126x_status_t sx126x_lr_fhss_write_payload( const void* context, const sx126x_lr_fhss_state_t* state,
-                                              const uint8_t* payload )
+                                              const uint8_t* encoded_payload, const uint8_t* payload, const uint8_t size )
 {
-    return sx126x_write_buffer( context, 0x00, payload, state->digest.nb_bytes );
+    sx126x_write_buffer(context, 0x00, payload, size);
+    return labscim_sx126x_write_fhss_info(context,encoded_payload,state->digest.nb_bytes);        
 }
 
 sx126x_status_t sx126x_lr_fhss_build_frame( const void* context, const sx126x_lr_fhss_params_t* params,
@@ -317,7 +334,7 @@ sx126x_status_t sx126x_lr_fhss_build_frame( const void* context, const sx126x_lr
     lr_fhss_build_frame( &params->lr_fhss_params, state->hop_params.hop_sequence_id, payload, payload_length,
                          tx_buffer );
 
-    status = sx126x_lr_fhss_write_payload( context, state, tx_buffer );
+    status = sx126x_lr_fhss_write_payload( context, state, tx_buffer,payload,payload_length);
     if( status != SX126X_STATUS_OK )
     {
         return status;
@@ -359,8 +376,8 @@ sx126x_status_t sx126x_lr_fhss_handle_tx_done( const void* context, const sx126x
                                                sx126x_lr_fhss_state_t* state )
 {
     const uint8_t ctrl = SX126X_LR_FHSS_DISABLE_HOPPING;
-
-    return sx126x_write_register( context, SX126X_LR_FHSS_REG_CTRL, &ctrl, 1 );
+    return SX126X_STATUS_OK;
+    //return sx126x_write_register( context, SX126X_LR_FHSS_REG_CTRL, &ctrl, 1 );
 }
 
 /*
@@ -368,29 +385,55 @@ sx126x_status_t sx126x_lr_fhss_handle_tx_done( const void* context, const sx126x
  * --- PRIVATE FUNCTIONS DEFINITION --------------------------------------------
  */
 
-sx126x_status_t sx126x_lr_fhss_write_hop_config( const void* context, const uint8_t nb_bytes, const uint8_t nb_hops )
+sx126x_status_t sx126x_lr_fhss_write_hop_config( const void* context, const uint8_t nb_bytes, const uint8_t nb_hops, const uint8_t nb_headers )
 {
     uint8_t data[] = { SX126X_LR_FHSS_ENABLE_HOPPING, nb_bytes, nb_hops };
 
-    return sx126x_write_register( context, SX126X_LR_FHSS_REG_CTRL, data, 3 );
+    if(gHopParams!=NULL)
+    {
+        free(gHopParams);
+    }
+    gHopParams = (struct lora_set_hopping *)malloc(FIXED_SIZEOF_LORA_SET_HOPPING + nb_hops * sizeof(struct hop_entry));
+    if (gHopParams == NULL)
+    {
+        perror("\nMalloc\n");
+        return;
+    }
+    gHopParams->size_bytes = nb_bytes;
+    gHopParams->num_hops = nb_hops;
+    gHopParams->num_headers = nb_headers;
+    gHopPtr = 0;
+    //return sx126x_write_register( context, SX126X_LR_FHSS_REG_CTRL, data, 3 );
+    return SX126X_STATUS_OK;
 }
 
 sx126x_status_t sx126x_lr_fhss_write_hop( const void* context, const uint8_t index, const uint16_t nb_symbols,
                                           const uint32_t freq_in_pll_steps )
 {
+    if(gHopParams == NULL)
+    {
+        return SX126X_STATUS_ERROR;
+    }
     if( index >= SX126X_LR_FHSS_HOP_TABLE_SIZE )
     {
         return SX126X_STATUS_ERROR;
     }
+    if( index >= gHopParams->num_hops )
+    {
+        return SX126X_STATUS_ERROR;
+    }
+    gHopParams->hops[index].nb_symbols = nb_symbols;
+    gHopParams->hops[index].freq_in_pll_steps = freq_in_pll_steps;
+    printf("\n Hop (%d symbols): %f Hz (%d steps)",nb_symbols,freq_in_pll_steps*0.95367431640625, freq_in_pll_steps);
+    return SX126X_STATUS_OK;
+    // uint8_t data[SX126X_LR_FHSS_HOP_ENTRY_SIZE] = {
+    //     ( uint8_t ) ( nb_symbols >> 8 ),         ( uint8_t ) nb_symbols,
+    //     ( uint8_t ) ( freq_in_pll_steps >> 24 ), ( uint8_t ) ( freq_in_pll_steps >> 16 ),
+    //     ( uint8_t ) ( freq_in_pll_steps >> 8 ),  ( uint8_t ) freq_in_pll_steps,
+    // };
 
-    uint8_t data[SX126X_LR_FHSS_HOP_ENTRY_SIZE] = {
-        ( uint8_t ) ( nb_symbols >> 8 ),         ( uint8_t ) nb_symbols,
-        ( uint8_t ) ( freq_in_pll_steps >> 24 ), ( uint8_t ) ( freq_in_pll_steps >> 16 ),
-        ( uint8_t ) ( freq_in_pll_steps >> 8 ),  ( uint8_t ) freq_in_pll_steps,
-    };
-
-    return sx126x_write_register( context, SX126X_LR_FHSS_REG_NUM_SYMBOLS_0 + ( SX126X_LR_FHSS_HOP_ENTRY_SIZE * index ),
-                                  data, SX126X_LR_FHSS_HOP_ENTRY_SIZE );
+    // return sx126x_write_register( context, SX126X_LR_FHSS_REG_NUM_SYMBOLS_0 + ( SX126X_LR_FHSS_HOP_ENTRY_SIZE * index ),
+    //                               data, SX126X_LR_FHSS_HOP_ENTRY_SIZE );
 }
 
 uint32_t sx126x_lr_fhss_get_next_freq_in_pll_steps( const sx126x_lr_fhss_params_t* params,

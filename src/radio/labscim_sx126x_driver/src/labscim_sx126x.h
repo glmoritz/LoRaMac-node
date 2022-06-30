@@ -962,6 +962,20 @@ sx126x_status_t sx126x_write_buffer( const void* context, const uint8_t offset, 
                                      const uint8_t size );
 
 /**
+ * @brief Write info about encoded FHSS data
+ * Since labscim does not use FHSS data, the software will write plain data instead of using the encoded buffer
+ * This way, we need to know the encoded data size in order to properly simulate the FHSS packet
+ *
+ * @param [in] context Chip implementation context 
+ * @param [in] buffer The buffer of bytes to NOT write into radio buffer
+ * @param [in] size The number of bytes that whould be written into Tx radio buffer
+ *
+ * @returns Operation status
+ * 
+ */
+sx126x_status_t labscim_sx126x_write_fhss_info(const void *context, const uint8_t *buffer, const uint8_t size);
+
+/**
  * @brief Read data from radio Rx buffer memory space.
  *
  * @param [in] context Chip implementation context

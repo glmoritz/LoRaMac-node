@@ -64,7 +64,7 @@
 
 extern buffer_circ_t *gNodeInputBuffer;
 extern buffer_circ_t *gNodeOutputBuffer;
-struct lora_radio_payload gTxPayload;
+
 
 #define SX126X_LP_MIN_OUTPUT_POWER -17
 #define SX126X_LP_MAX_OUTPUT_POWER 15
@@ -453,9 +453,8 @@ ral_status_t ral_sx126x_set_fs( const void* context )
 ral_status_t ral_sx126x_set_tx( const void* context )
 {
     //ok
-    //return ( ral_status_t ) sx126x_set_tx( context, 0 );
-    uint32_t sequence_number = radio_command(gNodeOutputBuffer, LORA_RADIO_SEND, (uint8_t *)(&gTxPayload), FIXED_SIZEOF_LORA_RADIO_PAYLOAD + gTxPayload.MessageSize_bytes);
-    return RAL_STATUS_OK;
+    return ( ral_status_t ) sx126x_set_tx( context, 0 );    
+    //return RAL_STATUS_OK;
 }
 
 ral_status_t ral_sx126x_set_rx( const void* context, const uint32_t timeout_in_ms )
@@ -620,15 +619,8 @@ ral_status_t ral_sx126x_set_pkt_payload( const void* context, const uint8_t* buf
     // {
     //     return status;
     // }
-    // status = ( ral_status_t ) sx126x_write_buffer( context, 0x00, buffer, size );
-
-    memcpy(gTxPayload.Message, buffer, size);
-    gTxPayload.MessageSize_bytes = size;
-    gTxPayload.SNR_db = -200;
-    gTxPayload.RSSI_dbm = -200;
-    gTxPayload.RX_timestamp_us = 0;
-
-    //return status;
+    status = ( ral_status_t ) sx126x_write_buffer( context, 0x00, buffer, size );
+    return status;
     return RAL_STATUS_OK;
 }
 

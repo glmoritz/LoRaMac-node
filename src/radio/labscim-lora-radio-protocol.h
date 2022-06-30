@@ -15,6 +15,7 @@
 #include <stdint.h>
 #include "omnet_radio_mode.h"
 #include "labscim_sx126x.h"
+#include "labscim_sx126x_lr_fhss.h"
 
 #define LORA_RADIO_GET_STATE (0x1111)
 #define LORA_RADIO_GET_STATE_RESULT (0x1112)
@@ -100,6 +101,13 @@ struct lora_set_packet_params
 } __attribute__((packed));
 
 
+#define LORA_RADIO_SET_FHSS_PARAMS (0xCCCC)
+struct lora_set_fhss_params
+{
+    sx126x_lr_fhss_params_t FHSSParams; //straight from SX1262 configuration
+} __attribute__((packed));
+
+
 #define LORA_RADIO_SEND (0x7777)
 #define LORA_RADIO_SEND_COMPLETED (0x7778)
 #define LORA_RADIO_PACKET_RECEIVED (0x7779)
@@ -120,10 +128,14 @@ struct lora_radio_payload
 	uint8_t CRCError;
 	uint8_t IFChain;
 	uint8_t LoRaSF;
-	uint8_t LoRaCR;
+	uint8_t LoRaCR;	
+	int16_t FHSSLen;
+	int16_t HPW; // LR-FHSS hopping grid number of steps.
+	int8_t FHSSCR; // LR-FHSS Coderate.
+	int8_t FHSSBW; // LR-FHSS Bandwidth index.
 	uint8_t Message[];
 } __attribute__((packed));
-#define FIXED_SIZEOF_LORA_RADIO_PAYLOAD (sizeof(uint16_t) + 2*sizeof(float) + sizeof(uint64_t) + sizeof(float) +  sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint32_t) + 4*sizeof(uint8_t))
+#define FIXED_SIZEOF_LORA_RADIO_PAYLOAD (sizeof(uint16_t) + 2*sizeof(float) + sizeof(uint64_t) + sizeof(float) +  sizeof(uint32_t) + sizeof(uint64_t) + sizeof(uint32_t) + 4*sizeof(uint8_t) + 2*sizeof(int16_t) + 2*sizeof(int8_t))
 
 #define LORA_RADIO_SET_RX (0x8888)
 #define LORA_RADIO_RX_TIMEOUT (0x8889)
@@ -188,6 +200,31 @@ struct lora_set_power
 {
     float Power_dbm;
 } __attribute__((packed));
+
+
+#define LORA_RADIO_SET_HOPPING (0xBBBB)
+/*!
+ * \brief Sends the frequency hopping information for the next packet
+ *
+ * \param [IN] unused - dummy payload
+ *
+ */
+
+struct hop_entry
+{
+	uint16_t nb_symbols;
+	uint32_t freq_in_pll_steps; //multiply by 0.95367431640625 to convert to Hz	
+}__attribute__((packed));
+
+struct lora_set_hopping
+{
+    uint8_t size_bytes;
+	uint8_t num_headers;
+	uint8_t num_hops;
+	struct hop_entry hops[];
+} __attribute__((packed));
+#define FIXED_SIZEOF_LORA_SET_HOPPING (3*sizeof(uint8_t))
+
 
 
 

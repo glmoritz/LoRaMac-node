@@ -142,19 +142,23 @@ sx126x_status_t sx126x_lr_fhss_write_hop_sequence_head( const void* context, con
                                                         sx126x_lr_fhss_state_t* state );
 
 /**
- * @brief Write physical LR-FHSS payload to radio
+ * @brief Simulate a physical LR-FHSS payload write to radio * 
  *
- * @param [in]  context         Chip implementation context
- * @param [in]  state           sx126x LR-FHSS state structure
- * @param [in]  payload         Array containing application-layer payload
+ * @param [in]  context                 Chip implementation context
+ * @param [in]  state                   sx126x LR-FHSS state structure
+ * @param [in]  encoded_payload         Array containing application-layer payload
+ * @param [in]  payload                 This is the decoded data from encoded_payload
+ * @param [in]  size                    This is the size of the decoded data
  *
- * @remark It is not necessary to explicitly call this function if the helper function @ref sx126x_lr_fhss_build_frame
- * is used.
+ * @remark Labscim does not need the encoded payload because it works on packet level.
+ *  This way, we effectively write the decoded payload and determine if the transmission can be decoded.
+ *  If it can, payload is passed back to application
  *
  * @returns Operation status
  */
 sx126x_status_t sx126x_lr_fhss_write_payload( const void* context, const sx126x_lr_fhss_state_t* state,
-                                              const uint8_t* payload );
+                                              const uint8_t* encoded_payload, const uint8_t* payload, const uint8_t size );
+
 
 /**
  * @brief Check parameter validity, build a frame, then send it

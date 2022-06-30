@@ -350,6 +350,7 @@ loramac_radio_status_t loramac_radio_lora_set_cfg( const loramac_radio_lora_cfg_
 
 loramac_radio_status_t loramac_radio_lr_fhss_set_cfg( const loramac_radio_lr_fhss_cfg_params_t* cfg_params )
 {
+    //ok
     ral_status_t status = RAL_STATUS_UNSUPPORTED_FEATURE;
 #if( LORAMAC_LR_FHSS_IS_ON == 1 )
     ral_t*           ral_context   = radio_board_get_ral_context_reference( );

@@ -168,7 +168,7 @@ radio_context_t* radio_board_get_radio_context_reference( void )
 #if( LORAMAC_LR_FHSS_IS_ON == 1 )
 void* radio_board_get_lr_fhss_state_reference( void )
 {
-#if defined( SX126X )
+#if defined( LABSCIM_RADIO )
     return ( void* ) &sx126x_lr_fhss_state;
 #else
     return NULL;

@@ -42,6 +42,14 @@
 #include "labscim_sx126x_hal.h"
 #include "labscim_sx126x_regs.h"
 
+
+#include "labscim_linked_list.h"
+#include "labscim_protocol.h"
+#include "labscim_socket.h"
+#include "labscim_log_levels.h"
+#include "labscim_loramac_setup.h"
+#include "labscim-lora-radio-protocol.h"
+
 /*
  * -----------------------------------------------------------------------------
  * --- PRIVATE MACROS-----------------------------------------------------------
@@ -76,6 +84,10 @@
  * -----------------------------------------------------------------------------
  * --- PRIVATE TYPES -----------------------------------------------------------
  */
+
+extern buffer_circ_t *gNodeInputBuffer;
+extern buffer_circ_t *gNodeOutputBuffer;
+struct lora_radio_payload* gTxPayload=NULL;
 
 /**
  * Commands Interface
@@ -278,10 +290,10 @@ sx126x_status_t sx126x_set_tx( const void* context, const uint32_t timeout_in_ms
     {
         return SX126X_STATUS_UNKNOWN_VALUE;
     }
-
-    const uint32_t timeout_in_rtc_step = sx126x_convert_timeout_in_ms_to_rtc_step( timeout_in_ms );
-
-    return sx126x_set_tx_with_timeout_in_rtc_step( context, timeout_in_rtc_step );
+    uint32_t sequence_number = radio_command(gNodeOutputBuffer, LORA_RADIO_SEND, (uint8_t *)(gTxPayload), FIXED_SIZEOF_LORA_RADIO_PAYLOAD + gTxPayload->MessageSize_bytes);
+    return SX126X_STATUS_OK;
+    //const uint32_t timeout_in_rtc_step = sx126x_convert_timeout_in_ms_to_rtc_step( timeout_in_ms );
+    //return sx126x_set_tx_with_timeout_in_rtc_step( context, timeout_in_rtc_step );
 }
 
 sx126x_status_t sx126x_set_tx_with_timeout_in_rtc_step( const void* context, const uint32_t timeout_in_rtc_step )
@@ -473,6 +485,12 @@ sx126x_status_t sx126x_read_register( const void* context, const uint16_t addres
     return ( sx126x_status_t ) sx126x_hal_read( context, buf, SX126X_SIZE_READ_REGISTER, buffer, size );
 }
 
+sx126x_status_t labscim_sx126x_write_fhss_info(const void *context, const uint8_t *buffer, const uint8_t size)
+{
+    gTxPayload->FHSSLen = size;
+    return SX126X_STATUS_OK;
+}
+
 sx126x_status_t sx126x_write_buffer( const void* context, const uint8_t offset, const uint8_t* buffer,
                                      const uint8_t size )
 {
@@ -480,8 +498,24 @@ sx126x_status_t sx126x_write_buffer( const void* context, const uint8_t offset, 
         SX126X_WRITE_BUFFER,
         offset,
     };
-
-    return ( sx126x_status_t ) sx126x_hal_write( context, buf, SX126X_SIZE_WRITE_BUFFER, buffer, size );
+    if (gTxPayload != NULL)
+    {
+        free(gTxPayload);
+    }
+    gTxPayload = (struct lora_radio_payload *)malloc(FIXED_SIZEOF_LORA_RADIO_PAYLOAD + size);
+    if (gTxPayload == NULL)
+    {
+        perror("\nMalloc\n");
+        return;
+    }
+    memcpy(gTxPayload->Message, buffer, size);
+    gTxPayload->MessageSize_bytes = size;
+    gTxPayload->SNR_db = -200;
+    gTxPayload->RSSI_dbm = -200;
+    gTxPayload->RX_timestamp_us = 0;
+    gTxPayload->FHSSLen = -1;
+    return SX126X_STATUS_OK;
+    //return ( sx126x_status_t ) sx126x_hal_write( context, buf, SX126X_SIZE_WRITE_BUFFER, buffer, size );
 }
 
 sx126x_status_t sx126x_read_buffer( const void* context, const uint8_t offset, uint8_t* buffer, const uint8_t size )
@@ -602,12 +636,16 @@ sx126x_status_t sx126x_set_rf_freq_in_pll_steps( const void* context, const uint
 
 sx126x_status_t sx126x_set_pkt_type( const void* context, const sx126x_pkt_type_t pkt_type )
 {
-    const uint8_t buf[SX126X_SIZE_SET_PKT_TYPE] = {
-        SX126X_SET_PKT_TYPE,
-        ( uint8_t ) pkt_type,
-    };
+    struct lora_set_modem modem_type;
+    modem_type.Modem = (uint32_t)pkt_type;
+    radio_command(gNodeOutputBuffer, LORA_RADIO_SET_MODEM, (void *)&modem_type, sizeof(struct lora_set_modem));
+    return ( sx126x_status_t ) SX126X_STATUS_OK;
 
-    return ( sx126x_status_t ) sx126x_hal_write( context, buf, SX126X_SIZE_SET_PKT_TYPE, 0, 0 );
+    // const uint8_t buf[SX126X_SIZE_SET_PKT_TYPE] = {
+    //     SX126X_SET_PKT_TYPE,
+    //     ( uint8_t ) pkt_type,
+    // };
+    //return ( sx126x_status_t ) sx126x_hal_write( context, buf, SX126X_SIZE_SET_PKT_TYPE, 0, 0 );
 }
 
 sx126x_status_t sx126x_get_pkt_type( const void* context, sx126x_pkt_type_t* pkt_type )

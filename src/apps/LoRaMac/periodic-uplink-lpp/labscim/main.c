@@ -33,6 +33,7 @@
  */
 /*! \file periodic-uplink/NAMote72/main.c */
 #include <stdio.h>
+#include <string.h>
 #include "../firmwareVersion.h"
 #include "../../common/githubVersion.h"
 #include "utilities.h"
@@ -518,6 +519,12 @@ static void PrepareTxFrame( void )
 
     CayenneLppCopy( AppData.Buffer );
     AppData.BufferSize = CayenneLppGetSize( );
+
+    char hello[32]="skamasfrevrest";
+    memcpy1(AppData.Buffer,hello,strlen(hello));
+    AppData.BufferSize = strlen(hello);
+
+
 
     if( LmHandlerSend( &AppData, LmHandlerParams.IsTxConfirmed ) == LORAMAC_HANDLER_SUCCESS )
     {
