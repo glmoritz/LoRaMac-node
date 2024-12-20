@@ -745,7 +745,7 @@ loramac_radio_status_t loramac_radio_get_random_number( uint32_t* random_number 
     uint32_t sequence_number;
     union random_number param_1, param_2, param_3;
     param_1.int_number = 0;
-    param_2.int_number = 0xFFFFFFFF;
+    param_2.int_number = 1073741824;//2^30
     param_3.int_number = 0;
 
     // Set operating mode to standby

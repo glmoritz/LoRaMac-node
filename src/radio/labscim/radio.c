@@ -642,7 +642,7 @@ uint32_t RadioRandom(void)
     uint32_t sequence_number;
     union random_number param_1, param_2, param_3;
     param_1.int_number = 0;
-    param_2.int_number = 0xFFFFFFFF;
+    param_2.int_number = 1073741824;//2^30
     param_3.int_number = 0;
     struct labscim_signal_get_random_response *resp;
     sequence_number = get_random(gNodeOutputBuffer, 14 /*intuniform*/, param_1, param_2, param_3);
