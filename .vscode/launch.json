@@ -22,8 +22,8 @@
         {
             "name": "(gdb) Launch",
             "type": "cppdbg",
-            "request": "launch",            
-            "program": "${workspaceRoot}/build/src/apps//LoRaMac/LoRaMac-classA",
+            "request": "launch",       
+            "program": "${workspaceRoot}/build/src/apps/LoRaMac/LoRaMac-periodic-uplink-lpp",
             "args": ["-b512", "-p9608", "-nlabscim-debug-node-aaa00000003", "-alocalhost"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

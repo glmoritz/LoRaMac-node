@@ -1,25 +1,37 @@
 /*!
- * \file      LmhpClockSync.c
+ * \file  LmhpClockSync.c
  *
- * \brief     Implements the LoRa-Alliance clock synchronization package
- *            Specification: https://lora-alliance.org/sites/default/files/2018-09/application_layer_clock_synchronization_v1.0.0.pdf
+ * \brief Implements the LoRa-Alliance clock synchronization package
+ *        Specification: https://lora-alliance.org/sites/default/files/2018-09/application_layer_clock_synchronization_v1.0.0.pdf
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2018 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
-#include "systime.h"
 #include "LmHandler.h"
 #include "LmhpClockSync.h"
 
@@ -37,7 +49,7 @@
 typedef struct LmhpClockSyncState_s
 {
     bool Initialized;
-    bool IsRunning;
+    bool IsTxPending;
     uint8_t DataBufferMaxSize;
     uint8_t *DataBuffer;
     union
@@ -91,12 +103,12 @@ static void LmhpClockSyncInit( void *params, uint8_t *dataBuffer, uint8_t dataBu
 static bool LmhpClockSyncIsInitialized( void );
 
 /*!
- * Returns the package operation status.
+ * Returns if a package transmission is pending or not.
  *
- * \retval status Package operation status
- *                [true: Running, false: Not running]
+ * \retval status Package transmission status
+ *                [true: pending, false: Not pending]
  */
-static bool LmhpClockSyncIsRunning( void );
+static bool LmhpClockSyncIsTxPending( void );
 
 /*!
  * Processes the internal package events.
@@ -120,7 +132,7 @@ static void LmhpClockSyncOnMcpsIndication( McpsIndication_t *mcpsIndication );
 static LmhpClockSyncState_t LmhpClockSyncState =
 {
     .Initialized = false,
-    .IsRunning = false,
+    .IsTxPending = false,
     .TimeReqParam.Value = 0,
     .AppTimeReqPending = false,
     .AdrEnabledPrev = false,
@@ -133,7 +145,7 @@ static LmhPackage_t LmhpClockSyncPackage =
     .Port = CLOCK_SYNC_PORT,
     .Init = LmhpClockSyncInit,
     .IsInitialized = LmhpClockSyncIsInitialized,
-    .IsRunning = LmhpClockSyncIsRunning,
+    .IsTxPending = LmhpClockSyncIsTxPending,
     .Process = LmhpClockSyncProcess,
     .OnMcpsConfirmProcess = LmhpClockSyncOnMcpsConfirm,
     .OnMcpsIndicationProcess = LmhpClockSyncOnMcpsIndication,
@@ -142,7 +154,6 @@ static LmhPackage_t LmhpClockSyncPackage =
     .OnMacMcpsRequest = NULL,                                  // To be initialized by LmHandler
     .OnMacMlmeRequest = NULL,                                  // To be initialized by LmHandler
     .OnJoinRequest = NULL,                                     // To be initialized by LmHandler
-    .OnSendRequest = NULL,                                     // To be initialized by LmHandler
     .OnDeviceTimeRequest = NULL,                               // To be initialized by LmHandler
     .OnSysTimeUpdate = NULL,                                   // To be initialized by LmHandler
 };
@@ -159,13 +170,12 @@ static void LmhpClockSyncInit( void * params, uint8_t *dataBuffer, uint8_t dataB
         LmhpClockSyncState.DataBuffer = dataBuffer;
         LmhpClockSyncState.DataBufferMaxSize = dataBufferMaxSize;
         LmhpClockSyncState.Initialized = true;
-        LmhpClockSyncState.IsRunning = true;
     }
     else
     {
-        LmhpClockSyncState.IsRunning = false;
         LmhpClockSyncState.Initialized = false;
     }
+    LmhpClockSyncState.IsTxPending = false;
 }
 
 static bool LmhpClockSyncIsInitialized( void )
@@ -173,14 +183,9 @@ static bool LmhpClockSyncIsInitialized( void )
     return LmhpClockSyncState.Initialized;
 }
 
-static bool LmhpClockSyncIsRunning( void )
+static bool LmhpClockSyncIsTxPending( void )
 {
-    if( LmhpClockSyncState.Initialized == false )
-    {
-        return false;
-    }
-
-    return LmhpClockSyncState.IsRunning;
+    return LmhpClockSyncState.IsTxPending;
 }
 
 static void LmhpClockSyncProcess( void )
@@ -314,7 +319,7 @@ static void LmhpClockSyncOnMcpsIndication( McpsIndication_t *mcpsIndication )
             .BufferSize = dataBufferIndex,
             .Port = CLOCK_SYNC_PORT
         };
-        LmhpClockSyncPackage.OnSendRequest( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+        LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
     }
 }
 
@@ -376,5 +381,5 @@ LmHandlerErrorStatus_t LmhpClockSyncAppTimeReq( void )
         .Port = CLOCK_SYNC_PORT
     };
     LmhpClockSyncState.AppTimeReqPending = true;
-    return LmhpClockSyncPackage.OnSendRequest( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+    return LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
 }

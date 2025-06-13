@@ -45,7 +45,45 @@ uint64_t LabscimSignalRegister(uint8_t* signal_name)
 	return ret;
 }
 
-void LabscimSignalEmit(uint64_t id, double value)
+void LabscimSignalEmitDouble(uint64_t id, double value)
 {
-	signal_emit(gNodeOutputBuffer, id, value);
+	signal_emit_double(gNodeOutputBuffer, id, value);
+}
+
+void LabscimSignalEmitChar(uint64_t id, char* value, uint64_t size)
+{
+	signal_emit_char(gNodeOutputBuffer, id, value,size);
+}
+
+void LabscimSignalSubscribe(uint64_t id)
+{
+	signal_subscribe(gNodeOutputBuffer,id);	
+}
+
+
+double LabscimExponentialRandomVariable(double mean) //mean is 1/lambda where lambda is the arrival rate (messages/second)
+{
+	float ret = 0;
+	struct labscim_protocol_header* resp;
+	union random_number parameter;
+	union random_number unused;
+
+	parameter.double_number = mean;
+	unused.double_number = 0;
+
+	uint32_t sequence_number = get_random(gNodeOutputBuffer, 1 /*exponential*/, parameter, unused, unused);
+	do{
+		resp =  (struct labscim_protocol_header*)socket_wait_for_command(0, 0);
+		if(resp->request_sequence_number == sequence_number)
+		{
+			ret =  ((struct labscim_signal_get_random_response*)resp)->result.double_number;
+			free(resp);
+			break;
+		}
+		else
+		{
+			socket_process_command(resp);
+		}
+	}while(1); //ugly?
+	return ret;
 }

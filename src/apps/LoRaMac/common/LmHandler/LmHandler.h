@@ -1,26 +1,39 @@
 /*!
- * \file      LmHandler.h
+ * \file  LmHandler.h
  *
- * \brief     Implements the LoRaMac layer handling. 
- *            Provides the possibility to register applicative packages.
+ * \brief Implements the LoRaMac layer handling. 
+ *        Provides the possibility to register applicative packages.
  *
  * \remark    Inspired by the examples provided on the en.i-cube_lrwan fork.
  *            MCD Application Team ( STMicroelectronics International )
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2018 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #ifndef __LORAMAC_HANDLER_H__
 #define __LORAMAC_HANDLER_H__
@@ -31,8 +44,6 @@ extern "C"
 #endif
 
 #include "LmHandlerTypes.h"
-#include "LmhpCompliance.h"
-
 
 typedef struct LmHandlerJoinParams_s
 {
@@ -67,12 +78,12 @@ typedef struct LmHandlerRxParams_s
     int8_t RxSlot;
 }LmHandlerRxParams_t;
 
-typedef struct LoRaMAcHandlerBeaconParams_s
+typedef struct LoRaMacHandlerBeaconParams_s
 {
     LoRaMacEventInfoStatus_t Status;
     LmHandlerBeaconState_t State;
     BeaconInfo_t Info;
-}LoRaMAcHandlerBeaconParams_t;
+}LoRaMacHandlerBeaconParams_t;
 
 typedef struct LmHandlerParams_s
 {
@@ -85,6 +96,10 @@ typedef struct LmHandlerParams_s
      */
     bool AdrEnable;
     /*!
+     * Uplink frame type
+     */
+    LmHandlerMsgTypes_t IsTxConfirmed;
+    /*!
      * Uplink datarate, when \ref AdrEnable is OFF
      */
     int8_t TxDatarate;
@@ -93,10 +108,10 @@ typedef struct LmHandlerParams_s
      */
     bool PublicNetworkEnable;
     /*!
-    * LoRaWAN ETSI duty cycle control enable/disable
-    *
-    * \remark Please note that ETSI mandates duty cycled transmissions. Use only for test purposes
-    */
+     * LoRaWAN ETSI duty cycle control enable/disable
+     *
+     * \remark Please note that ETSI mandates duty cycled transmissions. Use only for test purposes
+     */
     bool DutyCycleEnabled;
     /*!
      * Application data buffer maximum size
@@ -106,6 +121,10 @@ typedef struct LmHandlerParams_s
      * Application data buffer pointer
      */
     uint8_t *DataBuffer;
+    /*!
+     * Class B ping-slot periodicity.
+     */
+    uint8_t PingSlotPeriodicity;
 }LmHandlerParams_t;
 
 typedef struct LmHandlerCallbacks_s
@@ -131,17 +150,19 @@ typedef struct LmHandlerCallbacks_s
     /*!
      *\brief    Will be called each time a Radio IRQ is handled by the MAC
      *          layer.
-     * 
+     *
      *\warning  Runs in a IRQ context. Should only change variables state.
      */
     void ( *OnMacProcess )( void );
     /*!
      * Notifies the upper layer that the NVM context has changed
      *
-     * \param [IN] stored Indicates if we are storing (true) or
-     *                    restoring (false) the NVM context
+     * \param [IN] state Indicates if we are storing (true) or
+     *                   restoring (false) the NVM context
+     *
+     * \param [IN] size Number of data bytes which were stored or restored.
      */
-    void ( *OnNvmContextChange )( LmHandlerNvmContextStates_t state );
+    void ( *OnNvmDataChange )( LmHandlerNvmContextStates_t state, uint16_t size );
     /*!
      * Notifies the upper layer that a network parameters have been set
      *
@@ -194,7 +215,7 @@ typedef struct LmHandlerCallbacks_s
      *
      * \param [IN] params notification parameters
      */
-    void ( *OnBeaconStatusChange )( LoRaMAcHandlerBeaconParams_t *params );
+    void ( *OnBeaconStatusChange )( LoRaMacHandlerBeaconParams_t *params );
 #if( LMH_SYS_TIME_UPDATE_NEW_API == 1 )
     /*!
      * Notifies the upper layer that the system time has been updated.
@@ -236,6 +257,13 @@ bool LmHandlerIsBusy( void );
  * \remark This function must be called in the main loop.
  */
 void LmHandlerProcess( void );
+
+/*!
+ * Gets current duty-cycle wait time
+ *
+ * \retval time to wait in ms
+ */
+TimerTime_t LmHandlerGetDutyCycleWaitTime( void );
 
 /*!
  * Instructs the MAC layer to send a ClassA uplink
@@ -319,6 +347,13 @@ LoRaMacRegion_t LmHandlerGetActiveRegion( void );
  */
 LmHandlerErrorStatus_t LmHandlerSetSystemMaxRxError( uint32_t maxErrorInMs );
 
+/*!
+ * Requests network server time update
+ *
+ * \retval status Returns \ref LORAMAC_HANDLER_SET if joined else \ref LORAMAC_HANDLER_RESET
+ */
+LmHandlerErrorStatus_t LmHandlerDeviceTimeReq( void );
+
 /*
  *=============================================================================
  * PACKAGES HANDLING
@@ -326,7 +361,6 @@ LmHandlerErrorStatus_t LmHandlerSetSystemMaxRxError( uint32_t maxErrorInMs );
  */
 LmHandlerErrorStatus_t LmHandlerPackageRegister( uint8_t id, void *params );
 bool LmHandlerPackageIsInitialized( uint8_t id );
-bool LmHandlerPackageIsRunning( uint8_t id );
 
 #ifdef __cplusplus
 }

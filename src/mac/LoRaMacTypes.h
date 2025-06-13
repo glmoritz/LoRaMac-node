@@ -1,34 +1,39 @@
 /*!
- * \file      LoRaMacTypes.h
+ * \file  LoRaMacTypes.h
  *
- * \brief     LoRa MAC layer internal types definition. Please do not include in application sources.
+ * \brief LoRa MAC layer internal types definition. Please do not include in application sources.
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
+ * Copyright Stackforce 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- *               ___ _____ _   ___ _  _____ ___  ___  ___ ___
- *              / __|_   _/_\ / __| |/ / __/ _ \| _ \/ __| __|
- *              \__ \ | |/ _ \ (__| ' <| _| (_) |   / (__| _|
- *              |___/ |_/_/ \_\___|_|\_\_| \___/|_|_\\___|___|
- *              embedded.connectivity.solutions===============
- *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Daniel Jaeckle ( STACKFORCE )
- *
- * \author    Johannes Bruder ( STACKFORCE )
- *
- * addtogroup LORAMAC
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
+ */
+/*!
+ * \addtogroup LORAMAC
  * \{
  *
  */
@@ -48,17 +53,520 @@ extern "C"
 /*!
  * Start value for unicast keys enumeration
  */
-#define LORAMAC_CRYPTO_UNICAST_KEYS     0
+#define LORAMAC_CRYPTO_UNICAST_KEYS                 0
 
 /*!
  * Start value for multicast keys enumeration
  */
-#define LORAMAC_CRYPTO_MULTICAST_KEYS   127
+#define LORAMAC_CRYPTO_MULTICAST_KEYS               127
 
 /*!
  * Maximum number of multicast context
  */
-#define LORAMAC_MAX_MC_CTX              4
+#define LORAMAC_MAX_MC_CTX                          4
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF12 - BW125
+ * AU915        | SF10 - BW125
+ * CN470        | SF12 - BW125
+ * CN779        | SF12 - BW125
+ * EU433        | SF12 - BW125
+ * EU868        | SF12 - BW125
+ * IN865        | SF12 - BW125
+ * KR920        | SF12 - BW125
+ * US915        | SF10 - BW125
+ * RU864        | SF12 - BW125
+ */
+#define DR_0                                        0
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF11 - BW125
+ * AU915        | SF9  - BW125
+ * CN470        | SF11 - BW125
+ * CN779        | SF11 - BW125
+ * EU433        | SF11 - BW125
+ * EU868        | SF11 - BW125
+ * IN865        | SF11 - BW125
+ * KR920        | SF11 - BW125
+ * US915        | SF9  - BW125
+ * RU864        | SF11 - BW125
+ */
+#define DR_1                                        1
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF10 - BW125
+ * AU915        | SF8  - BW125
+ * CN470        | SF10 - BW125
+ * CN779        | SF10 - BW125
+ * EU433        | SF10 - BW125
+ * EU868        | SF10 - BW125
+ * IN865        | SF10 - BW125
+ * KR920        | SF10 - BW125
+ * US915        | SF8  - BW125
+ * RU864        | SF10 - BW125
+ */
+#define DR_2                                        2
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF9  - BW125
+ * AU915        | SF7  - BW125
+ * CN470        | SF9  - BW125
+ * CN779        | SF9  - BW125
+ * EU433        | SF9  - BW125
+ * EU868        | SF9  - BW125
+ * IN865        | SF9  - BW125
+ * KR920        | SF9  - BW125
+ * US915        | SF7  - BW125
+ * RU864        | SF9  - BW125
+ */
+#define DR_3                                        3
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF8  - BW125
+ * AU915        | SF8  - BW500
+ * CN470        | SF8  - BW125
+ * CN779        | SF8  - BW125
+ * EU433        | SF8  - BW125
+ * EU868        | SF8  - BW125
+ * IN865        | SF8  - BW125
+ * KR920        | SF8  - BW125
+ * US915        | SF8  - BW500
+ * RU864        | SF8  - BW125
+ */
+#define DR_4                                        4
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF7  - BW125
+ * AU915        | RFU
+ * CN470        | SF7  - BW125
+ * CN779        | SF7  - BW125
+ * EU433        | SF7  - BW125
+ * EU868        | SF7  - BW125
+ * IN865        | SF7  - BW125
+ * KR920        | SF7  - BW125
+ * US915        | LR-FHSS CR1/3: 1.523 MHz BW
+ * RU864        | SF7  - BW125
+ */
+#define DR_5                                        5
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | SF7  - BW250
+ * AU915        | RFU
+ * CN470        | SF12 - BW125
+ * CN779        | SF7  - BW250
+ * EU433        | SF7  - BW250
+ * EU868        | SF7  - BW250
+ * IN865        | SF7  - BW250
+ * KR920        | RFU
+ * US915        | LR-FHSS CR2/3: 1.523 MHz BW
+ * RU864        | SF7  - BW250
+ */
+#define DR_6                                        6
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | FSK
+ * AU915        | LR-FHSS CR1/3: 1.523 MHz BW
+ * CN470        | SF12 - BW125
+ * CN779        | FSK
+ * EU433        | FSK
+ * EU868        | FSK
+ * IN865        | FSK
+ * KR920        | RFU
+ * US915        | RFU
+ * RU864        | FSK
+ */
+#define DR_7                                        7
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | SF12 - BW500
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | LR-FHSS  CR1/3: 137 kHz BW
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | SF12 - BW500
+ * RU864        | RFU
+ */
+#define DR_8                                        8
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | SF11 - BW500
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | LR-FHSS CR2/3: 137 kHz BW
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | SF11 - BW500
+ * RU864        | RFU
+ */
+#define DR_9                                        9
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | SF10 - BW500
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | LR-FHSS CR1/3: 336 kHz BW
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | SF10 - BW500
+ * RU864        | RFU
+ */
+#define DR_10                                       10
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | SF9  - BW500
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | LR-FHSS CR2/3:  336 kHz BW
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | SF9  - BW500
+ * RU864        | RFU
+ */
+#define DR_11                                       11
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | SF8  - BW500
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | RFU
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | SF8  - BW500
+ * RU864        | RFU
+ */
+#define DR_12                                       12
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | SF7  - BW500
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | RFU
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | SF7  - BW500
+ * RU864        | RFU
+ */
+#define DR_13                                       13
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | RFU
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | RFU
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | RFU
+ * RU864        | RFU
+ */
+#define DR_14                                       14
+
+/*!
+ * Region       | SF
+ * ------------ | :-----:
+ * AS923        | RFU
+ * AU915        | RFU
+ * CN470        | RFU
+ * CN779        | RFU
+ * EU433        | RFU
+ * EU868        | RFU
+ * IN865        | RFU
+ * KR920        | RFU
+ * US915        | RFU
+ * RU864        | RFU
+ */
+#define DR_15                                       15
+
+
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP
+ * AU915        | Max EIRP
+ * CN470        | Max EIRP
+ * CN779        | Max EIRP
+ * EU433        | Max EIRP
+ * EU868        | Max EIRP
+ * IN865        | Max EIRP
+ * KR920        | Max EIRP
+ * US915        | Max ERP
+ * RU864        | Max EIRP
+ */
+#define TX_POWER_0                                  0
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 2
+ * AU915        | Max EIRP - 2
+ * CN470        | Max EIRP - 2
+ * CN779        | Max EIRP - 2
+ * EU433        | Max EIRP - 2
+ * EU868        | Max EIRP - 2
+ * IN865        | Max EIRP - 2
+ * KR920        | Max EIRP - 2
+ * US915        | Max ERP - 2
+ * RU864        | Max EIRP - 2
+ */
+#define TX_POWER_1                                  1
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 4
+ * AU915        | Max EIRP - 4
+ * CN470        | Max EIRP - 4
+ * CN779        | Max EIRP - 4
+ * EU433        | Max EIRP - 4
+ * EU868        | Max EIRP - 4
+ * IN865        | Max EIRP - 4
+ * KR920        | Max EIRP - 4
+ * US915        | Max ERP - 4
+ * RU864        | Max EIRP - 4
+ */
+#define TX_POWER_2                                  2
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 6
+ * AU915        | Max EIRP - 6
+ * CN470        | Max EIRP - 6
+ * CN779        | Max EIRP - 6
+ * EU433        | Max EIRP - 6
+ * EU868        | Max EIRP - 6
+ * IN865        | Max EIRP - 6
+ * KR920        | Max EIRP - 6
+ * US915        | Max ERP - 6
+ * RU864        | Max EIRP - 6
+ */
+#define TX_POWER_3                                  3
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 8
+ * AU915        | Max EIRP - 8
+ * CN470        | Max EIRP - 8
+ * CN779        | Max EIRP - 8
+ * EU433        | Max EIRP - 8
+ * EU868        | Max EIRP - 8
+ * IN865        | Max EIRP - 8
+ * KR920        | Max EIRP - 8
+ * US915        | Max ERP - 8
+ * RU864        | Max EIRP - 8
+ */
+#define TX_POWER_4                                  4
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 10
+ * AU915        | Max EIRP - 10
+ * CN470        | Max EIRP - 10
+ * CN779        | Max EIRP - 10
+ * EU433        | Max EIRP - 10
+ * EU868        | Max EIRP - 10
+ * IN865        | Max EIRP - 10
+ * KR920        | Max EIRP - 10
+ * US915        | Max ERP - 10
+ * RU864        | Max EIRP - 10
+ */
+#define TX_POWER_5                                  5
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 12
+ * AU915        | Max EIRP - 12
+ * CN470        | Max EIRP - 12
+ * CN779        | -
+ * EU433        | -
+ * EU868        | Max EIRP - 12
+ * IN865        | Max EIRP - 12
+ * KR920        | Max EIRP - 12
+ * US915        | Max ERP - 12
+ * RU864        | Max EIRP - 12
+ */
+#define TX_POWER_6                                  6
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | Max EIRP - 14
+ * AU915        | Max EIRP - 14
+ * CN470        | Max EIRP - 14
+ * CN779        | -
+ * EU433        | -
+ * EU868        | Max EIRP - 14
+ * IN865        | Max EIRP - 14
+ * KR920        | Max EIRP - 14
+ * US915        | Max ERP - 14
+ * RU864        | Max EIRP - 14
+ */
+#define TX_POWER_7                                  7
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 16
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | Max EIRP - 16
+ * KR920        | -
+ * US915        | Max ERP - 16
+ * RU864        | -
+ */
+#define TX_POWER_8                                  8
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 18
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | Max EIRP - 18
+ * KR920        | -
+ * US915        | Max ERP - 18
+ * RU864        | -
+ */
+#define TX_POWER_9                                  9
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 20
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | Max EIRP - 20
+ * KR920        | -
+ * US915        | Max ERP - 20
+ * RU864        | -
+ */
+#define TX_POWER_10                                 10
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 22
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | -
+ * KR920        | -
+ * US915        | Max ERP - 22
+ * RU864        | -
+ */
+#define TX_POWER_11                                 11
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 24
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | -
+ * KR920        | -
+ * US915        | Max ERP - 24
+ * RU864        | -
+ */
+#define TX_POWER_12                                 12
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 26
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | -
+ * KR920        | -
+ * US915        | Max ERP - 26
+ * RU864        | -
+ */
+#define TX_POWER_13                                 13
+
+/*!
+ * Region       | dBM
+ * ------------ | :-----:
+ * AS923        | -
+ * AU915        | Max EIRP - 28
+ * CN470        | -
+ * CN779        | -
+ * EU433        | -
+ * EU868        | -
+ * IN865        | -
+ * KR920        | -
+ * US915        | Max ERP - 28
+ * RU864        | -
+ */
+#define TX_POWER_14                                 14
+
+/*!
+ * RFU
+ */
+#define TX_POWER_15                                 15
 
 /*!
  * LoRaWAN devices classes definition
@@ -161,6 +669,14 @@ typedef enum eFCntIdentifier
      * Multicast downlink counter for index 3
      */
     MC_FCNT_DOWN_3,
+    /*!
+     * RJcount1 is a counter incremented with every transmitted  Type 1 Rejoin request.
+     */
+    RJ_COUNT_0,
+    /*!
+     * RJcount0 is a counter incremented with every transmitted Type 0 or 2 Rejoin request.
+     */
+    RJ_COUNT_1,
 }FCntIdentifier_t;
 
 /*!
@@ -296,35 +812,42 @@ typedef enum eAddressIdentifier
 /*
  * Multicast Rx window parameters
  */
-typedef union uMcRxParams
+typedef struct sMcRxParams
 {
-    struct
+    /*!
+     * Multicats channel LoRaWAN class B or C
+     */
+    DeviceClass_t Class;
+    union
     {
-        /*!
-            * Reception frequency of the ping slot windows
-            */
-        uint32_t Frequency;
-        /*!
-            * Datarate of the ping slot
-            */
-        int8_t Datarate;
-        /*!
-            * This parameter is necessary for class B operation. It defines the
-            * periodicity of the multicast downlink slots
-            */
-        uint16_t Periodicity;
-    }ClassB;
-    struct
-    {
-        /*!
-        * Reception frequency of the ping slot windows
-        */
-        uint32_t Frequency;
-        /*!
-        * Datarate of the ping slot
-        */
-        int8_t Datarate;
-    }ClassC;
+        struct
+        {
+            /*!
+             * Reception frequency of the ping slot windows
+             */
+            uint32_t Frequency;
+            /*!
+             * Datarate of the ping slot
+             */
+            int8_t Datarate;
+            /*!
+             * This parameter is necessary for class B operation. It defines the
+             * periodicity of the multicast downlink slots
+             */
+            uint16_t Periodicity;
+        }ClassB;
+        struct
+        {
+            /*!
+             * Reception frequency of the ping slot windows
+             */
+            uint32_t Frequency;
+            /*!
+             * Datarate of the ping slot
+             */
+            int8_t Datarate;
+        }ClassC;
+    }Params;
 }McRxParams_t;
 
 /*!
@@ -337,10 +860,6 @@ typedef struct sMcChannelParams
      * Indicates which set of keys are to be used. \ref uMcKeys
      */
     bool IsRemotelySetup;
-    /*!
-     * Multicats channel LoRaWAN class B or C
-     */
-    DeviceClass_t Class;
     /*!
      * True if the entry is active
      */
@@ -425,6 +944,10 @@ typedef struct sMulticastCtx
      * Ping offset of the multicast channel for Class B
      */
     uint16_t PingOffset;
+    /*!
+     * Set to 1, if the FPending bit is set
+     */
+    uint8_t FPendingSet;
 }MulticastCtx_t;
 
 /*!
@@ -457,6 +980,10 @@ typedef enum eJoinReqIdentifier
  */
 typedef enum eLoRaMacMoteCmd
 {
+    /*!
+     * ResetInd
+     */
+    MOTE_MAC_RESET_IND               = 0x01,
     /*!
      * LinkCheckReq
      */
@@ -494,9 +1021,25 @@ typedef enum eLoRaMacMoteCmd
      */
     MOTE_MAC_DL_CHANNEL_ANS          = 0x0A,
     /*!
+     * RekeyInd
+     */
+    MOTE_MAC_REKEY_IND               = 0x0B,
+    /*!
      * DeviceTimeReq
      */
     MOTE_MAC_DEVICE_TIME_REQ         = 0x0D,
+    /*!
+     * ADRParamSetupAns
+     */
+    MOTE_MAC_ADR_PARAM_SETUP_ANS     = 0x0C,
+    /*!
+     * RejoinParamSetupAns
+     */
+    MOTE_MAC_REJOIN_PARAM_ANS        = 0x0F,
+    /*!
+     * DeviceModeInd ( Class C only )
+     */
+    MOTE_MAC_DEVICE_MODE_IND         = 0x20,
     /*!
      * PingSlotInfoReq
      */
@@ -504,7 +1047,7 @@ typedef enum eLoRaMacMoteCmd
     /*!
      * PingSlotFreqAns
      */
-    MOTE_MAC_PING_SLOT_FREQ_ANS      = 0x11,
+    MOTE_MAC_PING_SLOT_CHANNEL_ANS   = 0x11,
     /*!
      * BeaconTimingReq
      */
@@ -562,6 +1105,26 @@ typedef enum eLoRaMacSrvCmd
      * DlChannelReq
      */
     SRV_MAC_DL_CHANNEL_REQ           = 0x0A,
+    /*!
+     * RekeyConf
+     */
+    SRV_MAC_REKEY_CONF               = 0x0B,
+    /*!
+     * ADRParamSetupReq
+     */
+    SRV_MAC_ADR_PARAM_SETUP_REQ      = 0x0C,
+    /*!
+     * ForceRejoinReq
+     */
+    SRV_MAC_FORCE_REJOIN_REQ         = 0x0E,
+    /*!
+     * RejoinParamSetupReq
+     */
+    SRV_MAC_REJOIN_PARAM_REQ         = 0x0F,
+    /*!
+     * DeviceModeConf ( Class C only )
+     */
+    SRV_MAC_DEVICE_MODE_CONF         = 0x20,
     /*!
      * DeviceTimeAns
      */
@@ -624,6 +1187,62 @@ typedef struct sBand
 }Band_t;
 
 /*!
+ * LoRaMAC channels parameters definition
+ */
+typedef union uDrRange
+{
+    /*!
+     * Byte-access to the bits
+     */
+    uint8_t Value;
+    /*!
+     * Structure to store the minimum and the maximum datarate
+     */
+    struct sFields
+    {
+        /*!
+         * Minimum data rate
+         *
+         * LoRaWAN Regional Parameters V1.0.2rB
+         *
+         * The allowed ranges are region specific. Please refer to \ref DR_0 to \ref DR_15 for details.
+         */
+        uint8_t Min : 4;
+        /*!
+         * Maximum data rate
+         *
+         * LoRaWAN Regional Parameters V1.0.2rB
+         *
+         * The allowed ranges are region specific. Please refer to \ref DR_0 to \ref DR_15 for details.
+         */
+        uint8_t Max : 4;
+    }Fields;
+}DrRange_t;
+
+/*!
+ * LoRaMAC channel definition
+ */
+typedef struct sChannelParams
+{
+    /*!
+     * Frequency in Hz
+     */
+    uint32_t Frequency;
+    /*!
+     * Alternative frequency for RX window 1
+     */
+    uint32_t Rx1Frequency;
+    /*!
+     * Data rate definition
+     */
+    DrRange_t DrRange;
+    /*!
+     * Band index
+     */
+    uint8_t Band;
+}ChannelParams_t;
+
+/*!
  * LoRaMAC frame types
  *
  * LoRaWAN Specification V1.0.2, chapter 4.2.1, table 1
@@ -654,6 +1273,10 @@ typedef enum eLoRaMacFrameType
      * LoRaMAC confirmed down-link frame
      */
     FRAME_TYPE_DATA_CONFIRMED_DOWN   = 0x05,
+    /*!
+     * LoRaMAC Rejoin Request
+     */
+    FRAME_TYPE_REJOIN                = 0x06,
     /*!
      * LoRaMAC proprietary frame
      */

@@ -1,22 +1,35 @@
 /*!
- * \file      CayenneLpp.c
+ * \file  CayenneLpp.c
  *
- * \brief     Implements the Cayenne Low Power Protocol
+ * \brief Implements the Cayenne Low Power Protocol
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2018 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdint.h>
 
@@ -90,7 +103,7 @@ uint8_t CayenneLppAddAnalogInput( uint8_t channel, float value )
         return 0;
     }
 
-    int16_t val = value * 100;
+    int16_t val = ( int16_t ) ( value * 100 );
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_ANALOG_INPUT; 
     CayenneLppBuffer[CayenneLppCursor++] = val >> 8; 
@@ -105,7 +118,7 @@ uint8_t CayenneLppAddAnalogOutput( uint8_t channel, float value )
     {
         return 0;
     }
-    int16_t val = value * 100;
+    int16_t val = ( int16_t ) ( value * 100 );
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_ANALOG_OUTPUT;
     CayenneLppBuffer[CayenneLppCursor++] = val >> 8; 
@@ -148,7 +161,7 @@ uint8_t CayenneLppAddTemperature( uint8_t channel, float celsius )
     {
         return 0;
     }
-    int16_t val = celsius * 10;
+    int16_t val = ( int16_t) ( celsius * 10 );
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_TEMPERATURE; 
     CayenneLppBuffer[CayenneLppCursor++] = val >> 8; 
@@ -165,7 +178,7 @@ uint8_t CayenneLppAddRelativeHumidity( uint8_t channel, float rh )
     }
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_RELATIVE_HUMIDITY; 
-    CayenneLppBuffer[CayenneLppCursor++] = rh * 2; 
+    CayenneLppBuffer[CayenneLppCursor++] = (uint8_t ) ( rh * 2 ); 
 
     return CayenneLppCursor;
 }
@@ -176,9 +189,9 @@ uint8_t CayenneLppAddAccelerometer( uint8_t channel, float x, float y, float z )
     {
         return 0;
     }
-    int16_t vx = x * 1000;
-    int16_t vy = y * 1000;
-    int16_t vz = z * 1000;
+    int16_t vx = ( int16_t ) ( x * 1000 );
+    int16_t vy = ( int16_t ) ( y * 1000 );
+    int16_t vz = ( int16_t ) ( z * 1000 );
 
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_ACCELEROMETER; 
@@ -198,7 +211,7 @@ uint8_t CayenneLppAddBarometricPressure( uint8_t channel, float hpa )
     {
         return 0;
     }
-    int16_t val = hpa * 10;
+    int16_t val = ( int16_t ) ( hpa * 10 );
 
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_BAROMETRIC_PRESSURE; 
@@ -214,9 +227,9 @@ uint8_t CayenneLppAddGyrometer( uint8_t channel, float x, float y, float z )
     {
         return 0;
     }
-    int16_t vx = x * 100;
-    int16_t vy = y * 100;
-    int16_t vz = z * 100;
+    int16_t vx = ( int16_t ) ( x * 100 );
+    int16_t vy = ( int16_t ) ( y * 100 );
+    int16_t vz = ( int16_t ) ( z * 100 );
 
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_GYROMETER; 
@@ -236,9 +249,9 @@ uint8_t CayenneLppAddGps( uint8_t channel, float latitude, float longitude, floa
     {
         return 0;
     }
-    int32_t lat = latitude * 10000;
-    int32_t lon = longitude * 10000;
-    int32_t alt = meters * 100;
+    int32_t lat = ( int32_t ) ( latitude * 10000 );
+    int32_t lon = ( int32_t ) ( longitude * 10000 );
+    int32_t alt = ( int32_t ) ( meters * 100 );
 
     CayenneLppBuffer[CayenneLppCursor++] = channel; 
     CayenneLppBuffer[CayenneLppCursor++] = LPP_GPS; 

@@ -1,23 +1,36 @@
 /*!
- * \file      LmhpFragmentation.c
+ * \file  LmhpFragmentation.c
  *
- * \brief     Implements the LoRa-Alliance fragmented data block transport package
- *            Specification: https://lora-alliance.org/sites/default/files/2018-09/fragmented_data_block_transport_v1.0.0.pdf
+ * \brief Implements the LoRa-Alliance fragmented data block transport package
+ *        Specification: https://lora-alliance.org/sites/default/files/2018-09/fragmented_data_block_transport_v1.0.0.pdf
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2018 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "LmHandler.h"
 #include "LmhpFragmentation.h"
@@ -50,7 +63,7 @@ typedef enum LmhpFragmentationTxDelayStates_e
 typedef struct LmhpFragmentationState_s
 {
     bool Initialized;
-    bool IsRunning;
+    bool IsTxPending;
     LmhpFragmentationTxDelayStates_t TxDelayState;
     uint8_t DataBufferMaxSize;
     uint8_t *DataBuffer;
@@ -97,12 +110,12 @@ static void LmhpFragmentationInit( void *params, uint8_t *dataBuffer, uint8_t da
 static bool LmhpFragmentationIsInitialized( void );
 
 /*!
- * Returns the package operation status.
+ * Returns if a package transmission is pending or not.
  *
- * \retval status Package operation status
- *                [true: Running, false: Not running]
+ * \retval status Package transmission status
+ *                [true: pending, false: Not pending]
  */
-static bool LmhpFragmentationIsRunning( void );
+static bool LmhpFragmentationIsTxPending( void );
 
 /*!
  * Processes the internal package events.
@@ -119,7 +132,7 @@ static void LmhpFragmentationOnMcpsIndication( McpsIndication_t *mcpsIndication 
 static LmhpFragmentationState_t LmhpFragmentationState =
 {
     .Initialized = false,
-    .IsRunning = false,
+    .IsTxPending = false,
     .TxDelayState = FRAGMENTATION_TX_DELAY_STATE_IDLE,
 };
 
@@ -156,7 +169,7 @@ typedef struct FragSessionData_s
 {
     FragGroupData_t FragGroupData;
     FragDecoderStatus_t FragDecoderStatus;
-    int32_t FragDecoderPorcessStatus;
+    int32_t FragDecoderProcessStatus;
 }FragSessionData_t;
 
 FragSessionData_t FragSessionData[FRAGMENTATION_MAX_SESSIONS];
@@ -169,7 +182,7 @@ static LmhPackage_t LmhpFragmentationPackage =
     .Port = FRAGMENTATION_PORT,
     .Init = LmhpFragmentationInit,
     .IsInitialized = LmhpFragmentationIsInitialized,
-    .IsRunning = LmhpFragmentationIsRunning,
+    .IsTxPending =  LmhpFragmentationIsTxPending,
     .Process = LmhpFragmentationProcess,
     .OnMcpsConfirmProcess = NULL,                              // Not used in this package
     .OnMcpsIndicationProcess = LmhpFragmentationOnMcpsIndication,
@@ -178,7 +191,6 @@ static LmhPackage_t LmhpFragmentationPackage =
     .OnMacMcpsRequest = NULL,                                  // To be initialized by LmHandler
     .OnMacMlmeRequest = NULL,                                  // To be initialized by LmHandler
     .OnJoinRequest = NULL,                                     // To be initialized by LmHandler
-    .OnSendRequest = NULL,                                     // To be initialized by LmHandler
     .OnDeviceTimeRequest = NULL,                               // To be initialized by LmHandler
     .OnSysTimeUpdate = NULL,                                   // To be initialized by LmHandler
 };
@@ -213,7 +225,6 @@ static void LmhpFragmentationInit( void *params, uint8_t *dataBuffer, uint8_t da
         LmhpFragmentationState.DataBuffer = dataBuffer;
         LmhpFragmentationState.DataBufferMaxSize = dataBufferMaxSize;
         LmhpFragmentationState.Initialized = true;
-        LmhpFragmentationState.IsRunning = true;
         // Initialize Fragmentation delay time.
         TxDelayTime = 0;
         // Initialize Fragmentation delay timer.
@@ -222,9 +233,9 @@ static void LmhpFragmentationInit( void *params, uint8_t *dataBuffer, uint8_t da
     else
     {
         LmhpFragmentationParams = NULL;
-        LmhpFragmentationState.IsRunning = false;
         LmhpFragmentationState.Initialized = false;
     }
+    LmhpFragmentationState.IsTxPending = false;
 }
 
 static bool LmhpFragmentationIsInitialized( void )
@@ -232,14 +243,9 @@ static bool LmhpFragmentationIsInitialized( void )
     return LmhpFragmentationState.Initialized;
 }
 
-static bool LmhpFragmentationIsRunning( void )
+static bool  LmhpFragmentationIsTxPending( void )
 {
-    if( LmhpFragmentationState.Initialized == false )
-    {
-        return false;
-    }
-
-    return LmhpFragmentationState.IsRunning;
+    return LmhpFragmentationState.IsTxPending;
 }
 
 static void LmhpFragmentationProcess( void )
@@ -392,7 +398,7 @@ static void LmhpFragmentationOnMcpsIndication( McpsIndication_t *mcpsIndication 
                 {
                     // The FragSessionSetup is accepted
                     fragSessionData.FragGroupData.IsActive = true;
-                    fragSessionData.FragDecoderPorcessStatus = FRAG_SESSION_ONGOING;
+                    fragSessionData.FragDecoderProcessStatus = FRAG_SESSION_ONGOING;
                     FragSessionData[fragSessionData.FragGroupData.FragSession.Fields.FragIndex] = fragSessionData;
 #if( FRAG_DECODER_FILE_HANDLING_NEW_API == 1 )
                     FragDecoderInit( fragSessionData.FragGroupData.FragNb,
@@ -462,9 +468,9 @@ static void LmhpFragmentationOnMcpsIndication( McpsIndication_t *mcpsIndication 
                     //}
                 }
 
-                if( FragSessionData[fragIndex].FragDecoderPorcessStatus == FRAG_SESSION_ONGOING )
+                if( FragSessionData[fragIndex].FragDecoderProcessStatus == FRAG_SESSION_ONGOING )
                 {
-                    FragSessionData[fragIndex].FragDecoderPorcessStatus = FragDecoderProcess( fragCounter, &mcpsIndication->Buffer[cmdIndex] );
+                    FragSessionData[fragIndex].FragDecoderProcessStatus = FragDecoderProcess( fragCounter, &mcpsIndication->Buffer[cmdIndex] );
                     FragSessionData[fragIndex].FragDecoderStatus = FragDecoderGetStatus( );
                     if( LmhpFragmentationParams->OnProgress != NULL )
                     {
@@ -476,17 +482,17 @@ static void LmhpFragmentationOnMcpsIndication( McpsIndication_t *mcpsIndication 
                 }
                 else
                 {
-                    if( FragSessionData[fragIndex].FragDecoderPorcessStatus >= 0 )
+                    if( FragSessionData[fragIndex].FragDecoderProcessStatus >= 0 )
                     {
                         // Fragmentation successfully done
-                        FragSessionData[fragIndex].FragDecoderPorcessStatus = FRAG_SESSION_NOT_STARTED;
+                        FragSessionData[fragIndex].FragDecoderProcessStatus = FRAG_SESSION_NOT_STARTED;
                         if( LmhpFragmentationParams->OnDone != NULL )
                         {
 #if( FRAG_DECODER_FILE_HANDLING_NEW_API == 1 )
-                            LmhpFragmentationParams->OnDone( FragSessionData[fragIndex].FragDecoderPorcessStatus,
+                            LmhpFragmentationParams->OnDone( FragSessionData[fragIndex].FragDecoderProcessStatus,
                                                             ( FragSessionData[fragIndex].FragGroupData.FragNb * FragSessionData[fragIndex].FragGroupData.FragSize ) - FragSessionData[fragIndex].FragGroupData.Padding );
 #else
-                            LmhpFragmentationParams->OnDone( FragSessionData[fragIndex].FragDecoderPorcessStatus,
+                            LmhpFragmentationParams->OnDone( FragSessionData[fragIndex].FragDecoderProcessStatus,
                                                             LmhpFragmentationParams->Buffer,
                                                             ( FragSessionData[fragIndex].FragGroupData.FragNb * FragSessionData[fragIndex].FragGroupData.FragSize ) - FragSessionData[fragIndex].FragGroupData.Padding );
 #endif
@@ -530,7 +536,7 @@ static void LmhpFragmentationOnMcpsIndication( McpsIndication_t *mcpsIndication 
         else
         {
             // Send the prepared answer
-            LmhpFragmentationPackage.OnSendRequest( &cmdReplyAppData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+            LmHandlerSend( &cmdReplyAppData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
         }
     }
 }

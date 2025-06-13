@@ -642,7 +642,7 @@ uint32_t RadioRandom(void)
     uint32_t sequence_number;
     union random_number param_1, param_2, param_3;
     param_1.int_number = 0;
-    param_2.int_number = 0xFFFFFFFF;
+    param_2.int_number = 1073741824;//2^30
     param_3.int_number = 0;
     struct labscim_signal_get_random_response *resp;
     sequence_number = get_random(gNodeOutputBuffer, 14 /*intuniform*/, param_1, param_2, param_3);
@@ -769,6 +769,17 @@ void RadioSetTxConfig(RadioModems_t modem, int8_t power, uint32_t fdev,
 {
     struct lora_set_modulation_params modulation_params;
     struct lora_set_packet_params packet_params;
+
+    //this emulates the maximum/minimum power of sx1262
+    if (power > 22)
+    {
+        power = 22;
+    }
+    if(power<-9)
+    {
+        power = -9;
+    }
+
     modulation_params.TransmitPower_dBm = (float)power;
 
     switch (modem)

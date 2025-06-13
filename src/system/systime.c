@@ -1,26 +1,36 @@
 /*!
- * \file      systime.c
+ * \file  systime.c
  *
- * \brief     System time functions implementation.
+ * \brief System time functions implementation.
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
+ * Copyright MCD Application Team (C)( STMicroelectronics International ). All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2018 Semtech - STMicroelectronics
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
- *
- * \author    Gregory Cristian ( Semtech )
- *
- * \author    MCD Application Team ( STMicroelectronics International )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdio.h>
 #include "rtc-board.h"
@@ -103,16 +113,18 @@ SysTime_t SysTimeSub( SysTime_t a, SysTime_t b )
 
 void SysTimeSet( SysTime_t sysTime )
 {
-    SysTime_t deltaTime;
-  
+    SysTime_t deltaTime;  
     SysTime_t calendarTime = { .Seconds = 0, .SubSeconds = 0 };
 
-    calendarTime.Seconds = RtcGetCalendarTime( ( uint16_t* )&calendarTime.SubSeconds );
+    //since we are using and ideal RTC, we will never correct our time
+    return;
 
-    // sysTime is epoch
-    deltaTime = SysTimeSub( sysTime, calendarTime );
+    // calendarTime.Seconds = RtcGetCalendarTime( ( uint16_t* )&calendarTime.SubSeconds );
 
-    RtcBkupWrite( deltaTime.Seconds, ( uint32_t )deltaTime.SubSeconds );
+    // // sysTime is epoch
+    // deltaTime = SysTimeSub( sysTime, calendarTime );
+
+    // RtcBkupWrite( deltaTime.Seconds, ( uint32_t )deltaTime.SubSeconds );
 }
 
 SysTime_t SysTimeGet( void )
@@ -142,7 +154,7 @@ SysTime_t SysTimeGetMcuTime( void )
     return calendarTime;
 }
 
-uint32_t SysTimeToMs( SysTime_t sysTime )
+TimerTime_t SysTimeToMs( SysTime_t sysTime )
 {
     uint32_t seconds;
     uint32_t subSeconds;
@@ -153,10 +165,10 @@ uint32_t SysTimeToMs( SysTime_t sysTime )
 
     SysTime_t calendarTime = SysTimeSub( sysTime, deltaTime );
 
-    return calendarTime.Seconds * 1000 + calendarTime.SubSeconds;
+    return ( TimerTime_t )( calendarTime.Seconds * 1000 + calendarTime.SubSeconds );
 }
 
-SysTime_t SysTimeFromMs( uint32_t timeMs )
+SysTime_t SysTimeFromMs( TimerTime_t timeMs )
 {
     uint32_t seconds = timeMs / 1000;
     uint32_t subSeconds = timeMs - seconds * 1000;

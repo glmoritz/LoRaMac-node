@@ -1,23 +1,36 @@
 /*!
- * \file      LmhpRemoteMcastSetup.c
+ * \file  LmhpRemoteMcastSetup.c
  *
- * \brief     Implements the LoRa-Alliance remote multicast setup package
- *            Specification: https://lora-alliance.org/sites/default/files/2018-09/remote_multicast_setup_v1.0.0.pdf
+ * \brief Implements the LoRa-Alliance remote multicast setup package
+ *        Specification: https://lora-alliance.org/sites/default/files/2018-09/remote_multicast_setup_v1.0.0.pdf
  *
- * \copyright Revised BSD License, see section \ref LICENSE.
+ * The Clear BSD License
+ * Copyright Semtech Corporation 2021. All rights reserved.
  *
- * \code
- *                ______                              _
- *               / _____)             _              | |
- *              ( (____  _____ ____ _| |_ _____  ____| |__
- *               \____ \| ___ |    (_   _) ___ |/ ___)  _ \
- *               _____) ) ____| | | || |_| ____( (___| | | |
- *              (______/|_____)_|_|_| \__)_____)\____)_| |_|
- *              (C)2013-2018 Semtech
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted (subject to the limitations in the disclaimer
+ * below) provided that the following conditions are met:
+ *     * Redistributions of source code must retain the above copyright
+ *       notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above copyright
+ *       notice, this list of conditions and the following disclaimer in the
+ *       documentation and/or other materials provided with the distribution.
+ *     * Neither the name of the Semtech corporation nor the
+ *       names of its contributors may be used to endorse or promote products
+ *       derived from this software without specific prior written permission.
  *
- * \endcode
- *
- * \author    Miguel Luis ( Semtech )
+ * NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY
+ * THIS LICENSE. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND
+ * CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT
+ * NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+ * PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL SEMTECH CORPORATION BE
+ * LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ * POSSIBILITY OF SUCH DAMAGE.
  */
 #include "LmHandler.h"
 #include "LmhpRemoteMcastSetup.h"
@@ -59,7 +72,7 @@ typedef enum LmhpRemoteMcastSetupSessionStates_e
 typedef struct LmhpRemoteMcastSetupState_s
 {
     bool Initialized;
-    bool IsRunning;
+    bool IsTxPending;
     LmhpRemoteMcastSetupSessionStates_t SessionState;
     uint8_t DataBufferMaxSize;
     uint8_t *DataBuffer;
@@ -103,12 +116,12 @@ static void LmhpRemoteMcastSetupInit( void *params, uint8_t *dataBuffer, uint8_t
 static bool LmhpRemoteMcastSetupIsInitialized( void );
 
 /*!
- * Returns the package operation status.
+ * Returns if a package transmission is pending or not.
  *
- * \retval status Package operation status
- *                [true: Running, false: Not running]
+ * \retval status Package transmission status
+ *                [true: pending, false: Not pending]
  */
-static bool LmhpRemoteMcastSetupIsRunning( void );
+static bool LmhpRemoteMcastSetupIsTxPending( void );
 
 /*!
  * Processes the internal package events.
@@ -129,7 +142,7 @@ static void OnSessionStopTimer( void *context );
 static LmhpRemoteMcastSetupState_t LmhpRemoteMcastSetupState =
 {
     .Initialized = false,
-    .IsRunning = false,
+    .IsTxPending = false,
     .SessionState = REMOTE_MCAST_SETUP_SESSION_STATE_IDLE,
 };
 
@@ -182,7 +195,7 @@ static LmhPackage_t LmhpRemoteMcastSetupPackage =
     .Port = REMOTE_MCAST_SETUP_PORT,
     .Init = LmhpRemoteMcastSetupInit,
     .IsInitialized = LmhpRemoteMcastSetupIsInitialized,
-    .IsRunning = LmhpRemoteMcastSetupIsRunning,
+    .IsTxPending = LmhpRemoteMcastSetupIsTxPending,
     .Process = LmhpRemoteMcastSetupProcess,
     .OnMcpsConfirmProcess = NULL,                              // Not used in this package
     .OnMcpsIndicationProcess = LmhpRemoteMcastSetupOnMcpsIndication,
@@ -191,7 +204,6 @@ static LmhPackage_t LmhpRemoteMcastSetupPackage =
     .OnMacMcpsRequest = NULL,                                  // To be initialized by LmHandler
     .OnMacMlmeRequest = NULL,                                  // To be initialized by LmHandler
     .OnJoinRequest = NULL,                                     // To be initialized by LmHandler
-    .OnSendRequest = NULL,                                     // To be initialized by LmHandler
     .OnDeviceTimeRequest = NULL,                               // To be initialized by LmHandler
     .OnSysTimeUpdate = NULL,                                   // To be initialized by LmHandler
 };
@@ -208,15 +220,14 @@ static void LmhpRemoteMcastSetupInit( void * params, uint8_t *dataBuffer, uint8_
         LmhpRemoteMcastSetupState.DataBuffer = dataBuffer;
         LmhpRemoteMcastSetupState.DataBufferMaxSize = dataBufferMaxSize;
         LmhpRemoteMcastSetupState.Initialized = true;
-        LmhpRemoteMcastSetupState.IsRunning = true;
         TimerInit( &SessionStartTimer, OnSessionStartTimer );
         TimerInit( &SessionStopTimer, OnSessionStopTimer );
     }
     else
     {
-        LmhpRemoteMcastSetupState.IsRunning = false;
         LmhpRemoteMcastSetupState.Initialized = false;
     }
+    LmhpRemoteMcastSetupState.IsTxPending = false;
 }
 
 static bool LmhpRemoteMcastSetupIsInitialized( void )
@@ -224,14 +235,9 @@ static bool LmhpRemoteMcastSetupIsInitialized( void )
     return LmhpRemoteMcastSetupState.Initialized;
 }
 
-static bool LmhpRemoteMcastSetupIsRunning( void )
+static bool LmhpRemoteMcastSetupIsTxPending( void )
 {
-    if( LmhpRemoteMcastSetupState.Initialized == false )
-    {
-        return false;
-    }
-
-    return LmhpRemoteMcastSetupState.IsRunning;
+    return LmhpRemoteMcastSetupState.IsTxPending;
 }
 
 static void LmhpRemoteMcastSetupProcess( void )
@@ -318,14 +324,13 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                 McChannelParams_t channel = 
                 {
                     .IsRemotelySetup = true,
-                    .Class = CLASS_C, // Field not used for multicast channel setup. Must be initialized to something
                     .IsEnabled = true,
                     .GroupID = ( AddressIdentifier_t )McSessionData[id].McGroupData.IdHeader.Fields.McGroupId,
                     .Address = McSessionData[id].McGroupData.McAddr,
                     .McKeys.McKeyE = McSessionData[id].McGroupData.McKeyEncrypted,
                     .FCountMin = McSessionData[id].McGroupData.McFCountMin,
                     .FCountMax = McSessionData[id].McGroupData.McFCountMax,
-                    .RxParams.ClassC = // Field not used for multicast channel setup. Must be initialized to something
+                    .RxParams.Params.ClassC = // Field not used for multicast channel setup. Must be initialized to something
                     {
                         .Frequency = 0,
                         .Datarate = 0
@@ -361,22 +366,23 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
                 uint8_t status = 0x00;
                 uint8_t id = mcpsIndication->Buffer[cmdIndex++] & 0x03;
 
+                McSessionData[id].RxParams.Class = CLASS_C;
+
                 McSessionData[id].SessionTime =  ( mcpsIndication->Buffer[cmdIndex++] << 0  ) & 0x000000FF;
                 McSessionData[id].SessionTime += ( mcpsIndication->Buffer[cmdIndex++] << 8  ) & 0x0000FF00;
                 McSessionData[id].SessionTime += ( mcpsIndication->Buffer[cmdIndex++] << 16 ) & 0x00FF0000;
                 McSessionData[id].SessionTime += ( mcpsIndication->Buffer[cmdIndex++] << 24 ) & 0xFF000000;
 
-                // Add Unix to Gps epcoh offset. The system time is based on Unix time.
+                // Add Unix to Gps epoch offset. The system time is based on Unix time.
                 McSessionData[id].SessionTime += UNIX_GPS_EPOCH_OFFSET;
 
                 McSessionData[id].SessionTimeout =  mcpsIndication->Buffer[cmdIndex++] & 0x0F;
 
-                McSessionData[id].RxParams.ClassC.Frequency =  ( mcpsIndication->Buffer[cmdIndex++] << 0  ) & 0x000000FF;
-                McSessionData[id].RxParams.ClassC.Frequency |= ( mcpsIndication->Buffer[cmdIndex++] << 8  ) & 0x0000FF00;
-                McSessionData[id].RxParams.ClassC.Frequency |= ( mcpsIndication->Buffer[cmdIndex++] << 16 ) & 0x00FF0000;
-                McSessionData[id].RxParams.ClassC.Frequency *= 100;
-
-                McSessionData[id].RxParams.ClassC.Datarate = mcpsIndication->Buffer[cmdIndex++];
+                McSessionData[id].RxParams.Params.ClassC.Frequency =  ( mcpsIndication->Buffer[cmdIndex++] << 0  ) & 0x000000FF;
+                McSessionData[id].RxParams.Params.ClassC.Frequency |= ( mcpsIndication->Buffer[cmdIndex++] << 8  ) & 0x0000FF00;
+                McSessionData[id].RxParams.Params.ClassC.Frequency |= ( mcpsIndication->Buffer[cmdIndex++] << 16 ) & 0x00FF0000;
+                McSessionData[id].RxParams.Params.ClassC.Frequency *= 100;
+                McSessionData[id].RxParams.Params.ClassC.Datarate = mcpsIndication->Buffer[cmdIndex++];
 
                 LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = REMOTE_MCAST_SETUP_MC_GROUP_CLASS_C_SESSION_ANS;
                 if( LoRaMacMcChannelSetupRxParams( ( AddressIdentifier_t )id, &McSessionData[id].RxParams, &status ) == LORAMAC_STATUS_OK )
@@ -410,7 +416,56 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
             }
             case REMOTE_MCAST_SETUP_MC_GROUP_CLASS_B_SESSION_REQ:
             {
-                // TODO implement command prosessing and handling
+                uint8_t status = 0x00;
+                uint8_t id = mcpsIndication->Buffer[cmdIndex++] & 0x03;
+
+                McSessionData[id].RxParams.Class = CLASS_B;
+
+                McSessionData[id].SessionTime =  ( mcpsIndication->Buffer[cmdIndex++] << 0  ) & 0x000000FF;
+                McSessionData[id].SessionTime += ( mcpsIndication->Buffer[cmdIndex++] << 8  ) & 0x0000FF00;
+                McSessionData[id].SessionTime += ( mcpsIndication->Buffer[cmdIndex++] << 16 ) & 0x00FF0000;
+                McSessionData[id].SessionTime += ( mcpsIndication->Buffer[cmdIndex++] << 24 ) & 0xFF000000;
+
+                // Add Unix to Gps epoch offset. The system time is based on Unix time.
+                McSessionData[id].SessionTime += UNIX_GPS_EPOCH_OFFSET;
+
+                McSessionData[id].RxParams.Params.ClassB.Periodicity = ( mcpsIndication->Buffer[cmdIndex] >> 4 ) & 0x07;
+                McSessionData[id].SessionTimeout =  mcpsIndication->Buffer[cmdIndex++] & 0x0F;
+
+                McSessionData[id].RxParams.Params.ClassB.Frequency =  ( mcpsIndication->Buffer[cmdIndex++] << 0  ) & 0x000000FF;
+                McSessionData[id].RxParams.Params.ClassB.Frequency |= ( mcpsIndication->Buffer[cmdIndex++] << 8  ) & 0x0000FF00;
+                McSessionData[id].RxParams.Params.ClassB.Frequency |= ( mcpsIndication->Buffer[cmdIndex++] << 16 ) & 0x00FF0000;
+                McSessionData[id].RxParams.Params.ClassB.Frequency *= 100;
+                McSessionData[id].RxParams.Params.ClassB.Datarate = mcpsIndication->Buffer[cmdIndex++];
+
+                LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = REMOTE_MCAST_SETUP_MC_GROUP_CLASS_B_SESSION_ANS;
+                if( LoRaMacMcChannelSetupRxParams( ( AddressIdentifier_t )id, &McSessionData[id].RxParams, &status ) == LORAMAC_STATUS_OK )
+                {
+                    SysTime_t curTime = { .Seconds = 0, .SubSeconds = 0 };
+                    curTime = SysTimeGet( );
+
+                    int32_t timeToSessionStart = McSessionData[id].SessionTime - curTime.Seconds;
+                    if( timeToSessionStart > 0 )
+                    {
+                        // Start session start timer
+                        TimerSetValue( &SessionStartTimer, timeToSessionStart * 1000 );
+                        TimerStart( &SessionStartTimer );
+
+                        DBG( "Time2SessionStart: %ld ms\n", timeToSessionStart * 1000 );
+
+                        LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
+                        LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 0  ) & 0xFF;
+                        LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 8  ) & 0xFF;
+                        LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = ( timeToSessionStart >> 16 ) & 0xFF;
+                        break;
+                    }
+                    else
+                    {
+                        // Session start time before current device time
+                        status |= 0x10;
+                    }
+                }
+                LmhpRemoteMcastSetupState.DataBuffer[dataBufferIndex++] = status;
                 break;
             }
             default:
@@ -429,7 +484,7 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
             .BufferSize = dataBufferIndex,
             .Port = REMOTE_MCAST_SETUP_PORT
         };
-        LmhpRemoteMcastSetupPackage.OnSendRequest( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
+        LmHandlerSend( &appData, LORAMAC_HANDLER_UNCONFIRMED_MSG );
 
         DBG( "ID          : %d\n", McSessionData[0].McGroupData.IdHeader.Fields.McGroupId );
         DBG( "McAddr      : %08lX\n", McSessionData[0].McGroupData.McAddr );
@@ -443,9 +498,17 @@ static void LmhpRemoteMcastSetupOnMcpsIndication( McpsIndication_t *mcpsIndicati
         DBG( "McFCountMax : %lu\n",  McSessionData[0].McGroupData.McFCountMax );
         DBG( "SessionTime : %lu\n",  McSessionData[0].SessionTime );
         DBG( "SessionTimeT: %d\n",  McSessionData[0].SessionTimeout );
-        DBG( "Rx Freq     : %lu\n", McSessionData[0].RxParams.ClassC.Frequency );
-        DBG( "Rx DR       : DR_%d\n", McSessionData[0].RxParams.ClassC.Datarate );
-
+        if( McSessionData[0].RxParams.Class == CLASS_B )
+        {
+            DBG( "Rx Freq     : %lu\n", McSessionData[0].RxParams.Params.ClassB.Frequency );
+            DBG( "Rx DR       : DR_%d\n", McSessionData[0].RxParams.Params.ClassB.Datarate );
+            DBG( "Periodicity : %u\n", McSessionData[0].RxParams.Params.ClassB.Periodicity );
+        }
+        else
+        {
+            DBG( "Rx Freq     : %lu\n", McSessionData[0].RxParams.Params.ClassC.Frequency );
+            DBG( "Rx DR       : DR_%d\n", McSessionData[0].RxParams.Params.ClassC.Datarate );
+        }
     }
 }
 
