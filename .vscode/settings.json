@@ -99,6 +99,9 @@
         "githubversion.h": "c",
         "loramac_radio.h": "c",
         "condition_variable": "c",
-        "labscim_sx126x.h": "c"
+        "labscim_sx126x.h": "c",
+        "regioncommon.h": "c",
+        "labscim_helper.h": "c",
+        "*.__": "c"
     }
 }

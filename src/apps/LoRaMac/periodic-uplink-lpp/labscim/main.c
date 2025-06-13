@@ -51,6 +51,11 @@
 #include "LmhpCompliance.h"
 #include "CayenneLpp.h"
 #include "LmHandlerMsgDisplay.h"
+#include "labscim_platform_socket.h"
+
+#include "labscim_helper.h"
+#include <sys/time.h>
+
 
 #ifndef ACTIVE_REGION
 
@@ -67,6 +72,40 @@
 #define LORAWAN_DEFAULT_CLASS                       CLASS_A
 #endif
 
+extern uint64_t gCurrentTime;
+
+
+uint64_t gUpstreamPacketGeneratedSignal;
+uint64_t gUpstreamPacketLatencySignal;
+uint64_t gDownstreamLatencySignal;
+uint64_t gNodeJoinSignal;
+uint64_t gUpstreamAoIMaxSignal;
+uint64_t gUpstreamAoIMinSignal;
+uint64_t gAoIAreaSignal;
+uint64_t gPacketReceivedSignal;
+uint64_t gDownstreamPacketSentOnGateway;
+uint64_t gDownstreamPacketSentToMe;
+
+uint64_t gSignature=0;
+extern uint8_t mac_addr[];
+
+struct signal_info
+{
+	uint64_t signature;	
+    double error;
+	double latency;
+	double aoi_max;
+	double aoi_min;
+	double aoi_area;
+} __attribute__((packed));
+
+struct packet_generated_info
+{
+	uint64_t signature;	
+    uint64_t labscim_time;	
+} __attribute__((packed));
+
+extern uint8_t gAPP_KEY[32];
 /*!
  * Defines the application data transmission duty cycle. 5s, value in [ms].
  */
@@ -274,6 +313,7 @@ extern Gpio_t Led3; // App
  */
 int main(int argc, char const *argv[])
 {
+    char* mac_inv = (char*)(&gSignature);
 
     //command line arguments to this node
     platform_process_args(argc,argv);
@@ -299,9 +339,36 @@ int main(int argc, char const *argv[])
                     &appVersion,
                     &gitHubVersion );
 
+    gUpstreamPacketGeneratedSignal = LabscimSignalRegister("LoRaUpstreamPacketGenerated");
+    gUpstreamPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
+    gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin"); 
+
+    gUpstreamAoIMaxSignal = LabscimSignalRegister("LoRaUpstreamAoIMax");
+    gUpstreamAoIMinSignal = LabscimSignalRegister("LoRaUpstreamAoIMin");
+    gAoIAreaSignal = LabscimSignalRegister("LoRaUpstreamAoIArea");
+
+    gUpstreamPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
+    gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin");    
+    
+    gDownstreamLatencySignal = LabscimSignalRegister("LoRaDownstreamPacketLatency"); 
+    gDownstreamPacketSentToMe = LabscimSignalRegister("LoRaDownstreamPacketGenerated"); 
+       
+
+    for(uint32_t i=0;i<8;i++)
+    {
+        mac_inv[i] = mac_addr[7-i];
+    }
+
+    gPacketReceivedSignal = LabscimSignalRegister("LoRaPacketReceived");
+	LabscimSignalSubscribe(gPacketReceivedSignal);
+
+    gDownstreamPacketSentOnGateway = LabscimSignalRegister("LoRaDownstreamPacket");
+	LabscimSignalSubscribe(gDownstreamPacketSentOnGateway);
+
+
     if ( LmHandlerInit( &LmHandlerCallbacks, &LmHandlerParams ) != LORAMAC_HANDLER_SUCCESS )
     {
-        printf( "LoRaMac wasn't properly initialized\n" );
+        labscim_printf( "LoRaMac wasn't properly initialized\n" );
         // Fatal error, endless loop.
         while ( 1 )
         {
@@ -380,6 +447,13 @@ static void OnJoinRequest( LmHandlerJoinParams_t* params )
     else
     {
         LmHandlerRequestClass( LORAWAN_DEFAULT_CLASS );
+
+        //20250612
+        // Emit join signal
+        MibRequestConfirm_t mibReq;
+        mibReq.Type = MIB_DEV_ADDR;
+        LoRaMacMibGetRequestConfirm( &mibReq );
+        LabscimSignalEmitDouble(gNodeJoinSignal, (double)mibReq.Param.DevAddr);
     }
 }
 
@@ -397,8 +471,20 @@ static void OnRxData( LmHandlerAppData_t* appData, LmHandlerRxParams_t* params )
     case 1: // The application LED can be controlled on port 1 or 2
     case LORAWAN_APP_PORT:
         {
-            AppLedStateOn = appData->Buffer[0] & 0x01;
-            GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0 );
+            //uint64_t *tx_time = (uint64_t *)appData->Buffer;
+            //LabscimSignalEmitDouble(gPacketLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
+            //LabscimSignalEmitDouble(gRTTSignal, (double)(gCurrentTime - tx_time[0]) / 1e6);
+            
+            //20250612
+            if (appData->BufferSize >= 2 * sizeof(uint64_t)) {
+                struct timeval tv;
+                gettimeofday(&tv, NULL);
+                long long timestamp_us = (long long)tv.tv_sec * 1000000LL + tv.tv_usec;                
+                uint64_t *tx_time = (uint64_t *)appData->Buffer;                
+                LabscimSignalEmitDouble(gDownstreamLatencySignal, (double)(timestamp_us - tx_time[1]) / 1e6);
+            }
+            //AppLedStateOn = appData->Buffer[0] & 0x01;
+            //GpioWrite( &Led3, ( ( AppLedStateOn & 0x01 ) != 0 ) ? 1 : 0 );
         }
         break;
     default:
@@ -488,47 +574,17 @@ static void PrepareTxFrame( void )
 #endif
 
     static uint8_t TxGpsData = 1; // GPS data transmission control
+    uint64_t *data = (uint64_t *)AppDataBuffer;
 
-    AppData.Port = LORAWAN_APP_PORT;
-
-    CayenneLppReset( );
-    if( TxGpsData == 0 )
-    {
-        CayenneLppAddDigitalInput( 0, AppLedStateOn );
-        CayenneLppAddAnalogInput( 1, BoardGetBatteryLevel( ) * 100 / 254 );
-        CayenneLppAddTemperature( 2, MPL3115ReadTemperature( ) );
-        CayenneLppAddBarometricPressure( 3, MPL3115ReadPressure( ) / 100 );
-    }
-    else
-    {
-        if( GpsHasFix( ) == true )
-        {
-            double latitude = 0, longitude = 0;
-            uint16_t altitudeGps = 0xFFFF;
-
-            GpsGetLatestGpsPositionDouble( &latitude, &longitude );
-            altitudeGps = GpsGetLatestGpsAltitude( );                     // in m
-
-            CayenneLppAddGps( 4, latitude, longitude, altitudeGps );
-        }
-        else
-        {
-            CayenneLppAddGps( 4, 0, 0, 0 );
-        }
-    }
-
-    CayenneLppCopy( AppData.Buffer );
-    AppData.BufferSize = CayenneLppGetSize( );
-
-    char hello[32]="skamasfrevrest";
-    memcpy1(AppData.Buffer,hello,strlen(hello));
-    AppData.BufferSize = strlen(hello);
-
-
+    AppData.Port = LORAWAN_APP_PORT;    
+    
+    
+    data[0] = gCurrentTime;
+    AppData.BufferSize = sizeof(uint64_t);
 
     if( LmHandlerSend( &AppData, LmHandlerParams.IsTxConfirmed ) == LORAMAC_HANDLER_SUCCESS )
     {
-        TxGpsData = ( TxGpsData + 1 ) & 0x01; // Send GPS data every 2 uplinks
+        LabscimSignalEmitDouble(gUpstreamPacketGeneratedSignal,(double)(gCurrentTime)/1e6);        
         // Switch LED 1 ON
         GpioWrite( &Led1, 0 );
         TimerStart( &Led1Timer );
@@ -641,6 +697,33 @@ static void OnLedBeaconTimerEvent( void* context )
 
 void labscim_signal_arrived(struct labscim_signal* sig)
 {
+	if (sig->signal_id == gPacketReceivedSignal)
+	{
+		struct signal_info* si = (struct signal_info*)(sig->signal);		
+		if (si->signature == gSignature)
+		{
+			LabscimSignalEmitDouble(gUpstreamPacketLatencySignal, si->latency);                        
+			LabscimSignalEmitDouble(gUpstreamAoIMinSignal, si->aoi_min);
+			LabscimSignalEmitDouble(gUpstreamAoIMaxSignal, si->aoi_max);
+			LabscimSignalEmitDouble(gAoIAreaSignal, si->aoi_area);
+		}
+	} else if (sig->signal_id == gDownstreamPacketSentOnGateway)
+	{
+        //*
+		struct packet_generated_info* pg = (struct packet_generated_info*)(sig->signal);		
+		if (pg->signature == gSignature)
+		{
+			LabscimSignalEmitDouble(gDownstreamPacketSentToMe, pg->labscim_time);                        			
+		}
+        //*/
+        /*
+		struct signal_info* si = (struct signal_info*)(sig->signal);		
+		if (si->signature == gSignature)
+		{
+			LabscimSignalEmitDouble(gDownstreamPacketSentToMe, si->error);  //error is just a value. Might be anything the gateway sent.
+		}
+        //*/
 
+	}
+	free(sig);
 }
-

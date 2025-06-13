@@ -44,12 +44,12 @@
 
 extern uint64_t gCurrentTime;
 
-uint64_t gPacketGeneratedSignal;
-uint64_t gPacketLatencySignal;
-uint64_t gRTTSignal;
+uint64_t gUpstreamPacketGeneratedSignal;
+uint64_t gUpstreamPacketLatencySignal;
+uint64_t gDownstreamLatencySignal;
 uint64_t gNodeJoinSignal;
-uint64_t gAoIMaxSignal;
-uint64_t gAoIMinSignal;
+uint64_t gUpstreamAoIMaxSignal;
+uint64_t gUpstreamAoIMinSignal;
 uint64_t gAoIAreaSignal;
 uint64_t gPacketReceivedSignal;
 
@@ -441,7 +441,7 @@ static bool SendFrame( void )
     }
     else
     {
-        LabscimSignalEmitDouble(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
+        LabscimSignalEmitDouble(gUpstreamPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
         if( IsTxConfirmed == false )
         {
             mcpsReq.Type = MCPS_UNCONFIRMED;
@@ -881,8 +881,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
     if (mcpsIndication->BufferSize >= sizeof(uint64_t)*2)
     {
         uint64_t *tx_time = (uint64_t *)mcpsIndication->Buffer;
-        LabscimSignalEmitDouble(gPacketLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
-        LabscimSignalEmitDouble(gRTTSignal, (double)(gCurrentTime - tx_time[0]) / 1e6);
+        LabscimSignalEmitDouble(gUpstreamPacketLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
+        LabscimSignalEmitDouble(gDownstreamLatencySignal, (double)(gCurrentTime - tx_time[0]) / 1e6);
     }
 
     if( mcpsIndication->BufferSize != 0 )
@@ -1044,18 +1044,18 @@ int main(int argc, char const *argv[])
 
     DeviceState = DEVICE_STATE_RESTORE;
 
-    gPacketGeneratedSignal = LabscimSignalRegister("LoRaUpstreamPacketGenerated");
-    gPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
+    gUpstreamPacketGeneratedSignal = LabscimSignalRegister("LoRaUpstreamPacketGenerated");
+    gUpstreamPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
     gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin"); 
 
-    gAoIMaxSignal = LabscimSignalRegister("LoRaUpstreamAoIMax");
-    gAoIMinSignal = LabscimSignalRegister("LoRaUpstreamAoIMin");
+    gUpstreamAoIMaxSignal = LabscimSignalRegister("LoRaUpstreamAoIMax");
+    gUpstreamAoIMinSignal = LabscimSignalRegister("LoRaUpstreamAoIMin");
     gAoIAreaSignal = LabscimSignalRegister("LoRaUpstreamAoIArea");
 
-    gPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
+    gUpstreamPacketLatencySignal = LabscimSignalRegister("LoRaUpstreamPacketLatency");    
     gNodeJoinSignal = LabscimSignalRegister("LoRaNodeJoin");    
     
-    gRTTSignal = LabscimSignalRegister("LoRaPacketRTT");
+    gDownstreamLatencySignal = LabscimSignalRegister("LoRaDownstreamPacketLatency");
 
     for(uint32_t i=0;i<8;i++)
     {
@@ -1280,9 +1280,9 @@ void labscim_signal_arrived(struct labscim_signal* sig)
 		struct signal_info* si = (struct signal_info*)(sig->signal);		
 		if (si->signature == gSignature)
 		{
-			LabscimSignalEmitDouble(gPacketLatencySignal, si->latency);						
-			LabscimSignalEmitDouble(gAoIMinSignal, si->aoi_min);
-			LabscimSignalEmitDouble(gAoIMaxSignal, si->aoi_max);
+			LabscimSignalEmitDouble(gUpstreamPacketLatencySignal, si->latency);						
+			LabscimSignalEmitDouble(gUpstreamAoIMinSignal, si->aoi_min);
+			LabscimSignalEmitDouble(gUpstreamAoIMaxSignal, si->aoi_max);
 			LabscimSignalEmitDouble(gAoIAreaSignal, si->aoi_area);
 		}
 	}

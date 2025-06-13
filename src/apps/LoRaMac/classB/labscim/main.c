@@ -44,9 +44,9 @@
 #endif
 extern uint64_t gCurrentTime;
 
-uint64_t gPacketGeneratedSignal;
-uint64_t gPacketLatencySignal;
-uint64_t gRTTSignal;
+uint64_t gUpstreamPacketGeneratedSignal;
+uint64_t gUpstreamPacketLatencySignal;
+uint64_t gDownstreamLatencySignal;
 uint64_t gNodeJoinSignal;
 DeviceClass_t gCurrentClass = CLASS_A;
 uint64_t gClassBTX = 0;
@@ -487,7 +487,7 @@ static bool SendFrame( void )
     AppData.BufferSize = mcpsReq.Req.Unconfirmed.fBufferSize;
 
     LoRaMacStatus_t status;
-    LabscimSignalEmitDouble(gPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
+    LabscimSignalEmitDouble(gUpstreamPacketGeneratedSignal,(double)(gCurrentTime)/1e6);
     status = LoRaMacMcpsRequest( &mcpsReq );
     labscim_printf( "\n###### ===== MCPS-Request ==== ######\n" );
     labscim_printf( "%d: STATUS      : %s\n",gCurrentTime, MacStatusStrings[status]);
@@ -953,8 +953,8 @@ static void McpsIndication( McpsIndication_t *mcpsIndication )
         uint64_t *tx_time = (uint64_t *)mcpsIndication->Buffer;
         if(tx_time[0]==LABSCIM_PROTOCOL_MAGIC_NUMBER)
         {
-            LabscimSignalEmitDouble(gPacketLatencySignal, (double)(gCurrentTime - tx_time[2]) / 1e6);
-            LabscimSignalEmitDouble(gRTTSignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
+            LabscimSignalEmitDouble(gUpstreamPacketLatencySignal, (double)(gCurrentTime - tx_time[2]) / 1e6);
+            LabscimSignalEmitDouble(gDownstreamLatencySignal, (double)(gCurrentTime - tx_time[1]) / 1e6);
         }        
     }
 
